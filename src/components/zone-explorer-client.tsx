@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { networkSignals } from '@/lib/network-data';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
@@ -25,5 +24,5 @@ export function ZoneExplorerClient({ apiKey }: { apiKey?: string }) {
     );
   }
 
-  return <MapView data={networkSignals} apiKey={apiKey} />;
+  return <MapView apiKey={apiKey} />;
 }
