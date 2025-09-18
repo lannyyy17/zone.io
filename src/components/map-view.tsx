@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
 import { GoogleMapsOverlay } from '@deck.gl/google-maps';
-import { HeatmapLayer } from '@deck.gl/layers';
+import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import type { Layer } from 'deck.gl';
 
 type SignalData = {
