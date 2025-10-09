@@ -2,8 +2,6 @@ import { AnimatedBackground } from '@/components/animated-background';
 import { ZoneExplorerClient } from '@/components/zone-explorer-client';
 
 export default function Home() {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
   return (
     <main className="flex min-h-screen flex-col lg:flex-row bg-background">
       <div className="relative flex h-64 w-full flex-col items-center justify-center overflow-hidden bg-primary p-8 text-center lg:h-screen lg:w-[480px]">
@@ -16,7 +14,7 @@ export default function Home() {
         </p>
       </div>
       <div className="flex-1 bg-muted">
-        <ZoneExplorerClient apiKey={apiKey} />
+        <ZoneExplorerClient />
       </div>
     </main>
   );
