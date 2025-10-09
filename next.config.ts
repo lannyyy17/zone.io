@@ -30,6 +30,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/leaflet/:path*',
+        destination: '/node_modules/leaflet/dist/images/:path*',
+      },
+    ]
+  },
 };
 
 export default nextConfig;

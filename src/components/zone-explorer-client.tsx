@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import {
   Card,
   CardContent,
@@ -19,8 +19,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { RawDataTable } from '@/components/raw-data-table';
+import { useEffect, useState } from 'react';
+
+const MapView = dynamic(() => import('@/components/map-view'), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-muted" />,
+});
+
+// A default location (e.g., Los Angeles)
+const DEFAULT_CENTER: [number, number] = [34.0522, -118.2437];
+const DEFAULT_ZOOM = 13;
 
 export function ZoneExplorerClient() {
+  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
@@ -57,18 +71,12 @@ export function ZoneExplorerClient() {
             <Card className="h-[calc(100%-40px)]">
               <CardContent className="h-full p-0">
                 <div className="relative h-full w-full rounded-lg overflow-hidden">
-                  <Image
-                    src="https://picsum.photos/seed/zone-explorer/1200/800"
-                    alt="Placeholder map"
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    data-ai-hint="map abstract"
-                  />
-                  <div className="absolute bottom-4 right-4 flex flex-col gap-2">
-                    <Button size="icon" variant="outline" className="bg-background">
+                  <MapView center={center} zoom={zoom} />
+                  <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
+                    <Button size="icon" variant="outline" className="bg-background" onClick={() => setZoom(z => z + 1)}>
                       <PlusIcon className="h-4 w-4"/>
                     </Button>
-                     <Button size="icon" variant="outline" className="bg-background">
+                     <Button size="icon" variant="outline" className="bg-background" onClick={() => setZoom(z => z - 1)}>
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><line x1="5" x2="19" y1="12" y2="12"/></svg>
                     </Button>
                   </div>
@@ -85,7 +93,7 @@ export function ZoneExplorerClient() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p>Raw data table will be displayed here.</p>
+                <RawDataTable />
               </CardContent>
             </Card>
           </TabsContent>
