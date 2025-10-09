@@ -1,9 +1,9 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect, useRef, useState } from 'react';
+import type { SignalData } from './raw-data-table';
 
 // Fix for default icon path issue in Next.js with Leaflet
 const iconRetinaUrl = '/leaflet/marker-icon-2x.png';
@@ -26,28 +26,25 @@ L.Marker.prototype.options.icon = DefaultIcon;
 interface MapViewProps {
   center: [number, number];
   zoom: number;
+  data: SignalData[];
 }
 
-function ChangeView({ center, zoom }: MapViewProps) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, zoom);
-  }, [map, center, zoom]);
-  return null;
+function getRssiColor(rssi: number): string {
+  if (rssi > -90) return '#4caf50'; // Good signal (green)
+  if (rssi > -100) return '#ff9800'; // Fair signal (orange)
+  return '#f44336'; // Poor signal (red)
 }
 
-export default function MapView({ center, zoom }: MapViewProps) {
+export default function MapView({ center, zoom, data }: MapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const markersRef = useRef<L.Marker[]>([]);
 
   useEffect(() => {
-    // This effect runs once on mount to initialize the map
     if (mapRef.current) {
-        // if map is already initialized, do nothing
         return;
     }
-    // The map container div is rendered by the return statement below.
-    // We can then initialize the map on it.
+    
     const map = L.map('map', {
         center: center,
         zoom: zoom,
@@ -58,27 +55,49 @@ export default function MapView({ center, zoom }: MapViewProps) {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    L.marker(center).addTo(map)
-        .bindPopup('A pretty CSS3 popup. <br /> Easily customizable.');
-
     mapRef.current = map;
     setMapReady(true);
     
-    // Cleanup function to destroy the map instance when the component unmounts
     return () => {
         if (mapRef.current) {
             mapRef.current.remove();
             mapRef.current = null;
         }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    // This effect runs when center or zoom props change to update the map view
     if (mapReady && mapRef.current) {
         mapRef.current.setView(center, zoom);
     }
   }, [center, zoom, mapReady]);
+
+  useEffect(() => {
+    if (mapReady && mapRef.current) {
+      // Clear existing markers
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
+
+      // Add new markers from data
+      const newMarkers = data.map(point => {
+        const marker = L.marker([point.latitude, point.longitude]).addTo(mapRef.current!);
+        marker.bindPopup(`<b>${point.carrier}</b><br>RSSI: ${point.rssi} dBm`);
+
+        // Create a custom circle icon
+        const circleIcon = L.divIcon({
+          html: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="${getRssiColor(point.rssi)}" stroke="black" stroke-width="5" opacity="0.8"/></svg>`,
+          className: 'leaflet-div-icon',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
+        });
+        marker.setIcon(circleIcon);
+
+        return marker;
+      });
+      markersRef.current = newMarkers;
+    }
+  }, [data, mapReady, mapRef]);
 
   return <div id="map" className="h-full w-full" />;
 }

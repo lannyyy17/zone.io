@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
-type SignalData = {
+export type SignalData = {
   id: string;
   timestamp: string;
   carrier: 'AT&T' | 'Verizon' | 'T-Mobile';
@@ -17,48 +17,10 @@ type SignalData = {
   longitude: number;
 };
 
-const mockData: SignalData[] = [
-  {
-    id: '1',
-    timestamp: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
-    carrier: 'Verizon',
-    rssi: -85,
-    latitude: 34.0522,
-    longitude: -118.2437,
-  },
-  {
-    id: '2',
-    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    carrier: 'AT&T',
-    rssi: -92,
-    latitude: 34.053,
-    longitude: -118.244,
-  },
-  {
-    id: '3',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    carrier: 'T-Mobile',
-    rssi: -78,
-    latitude: 34.054,
-    longitude: -118.245,
-  },
-  {
-    id: '4',
-    timestamp: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
-    carrier: 'Verizon',
-    rssi: -88,
-    latitude: 34.055,
-    longitude: -118.246,
-  },
-  {
-    id: '5',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-    carrier: 'AT&T',
-    rssi: -95,
-    latitude: 34.056,
-    longitude: -118.247,
-  },
-];
+interface RawDataTableProps {
+  data: SignalData[];
+  onRowClick: (data: SignalData) => void;
+}
 
 function getRssiBadgeVariant(rssi: number): 'default' | 'secondary' | 'destructive' {
   if (rssi > -90) return 'default'; // Good signal
@@ -66,7 +28,7 @@ function getRssiBadgeVariant(rssi: number): 'default' | 'secondary' | 'destructi
   return 'destructive'; // Poor signal
 }
 
-export function RawDataTable() {
+export function RawDataTable({ data, onRowClick }: RawDataTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -78,17 +40,17 @@ export function RawDataTable() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {mockData.map((data) => (
-          <TableRow key={data.id}>
+        {data.map((dataPoint) => (
+          <TableRow key={dataPoint.id} onClick={() => onRowClick(dataPoint)} className="cursor-pointer">
             <TableCell>
-              {new Date(data.timestamp).toLocaleTimeString()}
+              {new Date(dataPoint.timestamp).toLocaleTimeString()}
             </TableCell>
-            <TableCell>{data.carrier}</TableCell>
+            <TableCell>{dataPoint.carrier}</TableCell>
             <TableCell>
-              <Badge variant={getRssiBadgeVariant(data.rssi)}>{data.rssi}</Badge>
+              <Badge variant={getRssiBadgeVariant(dataPoint.rssi)}>{dataPoint.rssi}</Badge>
             </TableCell>
             <TableCell>
-              {data.latitude.toFixed(4)}, {data.longitude.toFixed(4)}
+              {dataPoint.latitude.toFixed(4)}, {dataPoint.longitude.toFixed(4)}
             </TableCell>
           </TableRow>
         ))}
