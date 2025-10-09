@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { SignalData } from './raw-data-table';
 
 // Fix for default icon path issue in Next.js with Leaflet
-const iconRetinaUrl = '/leaflet/marker-icon-2x.png';
-const iconUrl = '/leaflet/marker-icon.png';
-const shadowUrl = '/leaflet/marker-shadow.png';
+const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png';
+const iconUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
+const shadowUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png';
 
 const DefaultIcon = L.icon({
   iconRetinaUrl,
