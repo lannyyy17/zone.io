@@ -7,7 +7,6 @@ import {
   SidebarMenuButton,
   SidebarInset,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
 import { ZoneExplorerClient } from '@/components/zone-explorer-client';
 import { HomeIcon, MapIcon, SettingsIcon, WifiIcon, SignalIcon, History, BarChart2 } from 'lucide-react';
 

@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Fix for default icon path issue in Next.js with Leaflet
 const iconRetinaUrl = '/leaflet/marker-icon-2x.png';
@@ -37,27 +37,48 @@ function ChangeView({ center, zoom }: MapViewProps) {
 }
 
 export default function MapView({ center, zoom }: MapViewProps) {
-  if (typeof window === 'undefined') {
-    return <div className="h-full w-full animate-pulse bg-muted" />;
-  }
+  const mapRef = useRef<L.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
-  return (
-    <MapContainer
-      center={center}
-      zoom={zoom}
-      scrollWheelZoom={true}
-      className="h-full w-full"
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <Marker position={center}>
-        <Popup>
-          A pretty CSS3 popup. <br /> Easily customizable.
-        </Popup>
-      </Marker>
-      <ChangeView center={center} zoom={zoom} />
-    </MapContainer>
-  );
+  useEffect(() => {
+    // This effect runs once on mount to initialize the map
+    if (mapRef.current) {
+        // if map is already initialized, do nothing
+        return;
+    }
+    // The map container div is rendered by the return statement below.
+    // We can then initialize the map on it.
+    const map = L.map('map', {
+        center: center,
+        zoom: zoom,
+        scrollWheelZoom: true,
+    });
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    L.marker(center).addTo(map)
+        .bindPopup('A pretty CSS3 popup. <br /> Easily customizable.');
+
+    mapRef.current = map;
+    setMapReady(true);
+    
+    // Cleanup function to destroy the map instance when the component unmounts
+    return () => {
+        if (mapRef.current) {
+            mapRef.current.remove();
+            mapRef.current = null;
+        }
+    };
+  }, []);
+
+  useEffect(() => {
+    // This effect runs when center or zoom props change to update the map view
+    if (mapReady && mapRef.current) {
+        mapRef.current.setView(center, zoom);
+    }
+  }, [center, zoom, mapReady]);
+
+  return <div id="map" className="h-full w-full" />;
 }
