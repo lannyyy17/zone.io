@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -8,9 +11,11 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { ZoneExplorerClient } from '@/components/zone-explorer-client';
-import { HomeIcon, MapIcon, SettingsIcon, WifiIcon, SignalIcon, History, BarChart2 } from 'lucide-react';
+import { HomeIcon, WifiIcon, History, BarChart2, SettingsIcon, SignalIcon } from 'lucide-react';
 
 export default function Home() {
+  const [activeMenu, setActiveMenu] = useState('Dashboard');
+
   return (
     <>
       <Sidebar>
@@ -25,31 +30,31 @@ export default function Home() {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#" isActive>
+              <SidebarMenuButton onClick={() => setActiveMenu('Dashboard')} isActive={activeMenu === 'Dashboard'}>
                 <HomeIcon />
                 Dashboard
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#">
+              <SidebarMenuButton onClick={() => setActiveMenu('Live View')} isActive={activeMenu === 'Live View'}>
                 <WifiIcon />
                 Live View
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#">
+              <SidebarMenuButton onClick={() => setActiveMenu('History')} isActive={activeMenu === 'History'}>
                 <History />
                 History
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#">
+              <SidebarMenuButton onClick={() => setActiveMenu('Reports')} isActive={activeMenu === 'Reports'}>
                 <BarChart2 />
                 Reports
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#">
+              <SidebarMenuButton onClick={() => setActiveMenu('Settings')} isActive={activeMenu === 'Settings'}>
                 <SettingsIcon />
                 Settings
               </SidebarMenuButton>
