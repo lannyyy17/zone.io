@@ -23,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { mockNetworkSignals } from '@/lib/mock-data';
+import { cn } from '@/lib/utils';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
@@ -132,7 +133,7 @@ export function ZoneExplorerClient() {
               <TabsTrigger value="map">Map View</TabsTrigger>
               <TabsTrigger value="data">Raw Data</TabsTrigger>
             </TabsList>
-            <TabsContent value="map" className="flex-1">
+            <TabsContent value="map" className={cn("flex-1", activeTab !== 'map' && 'hidden')}>
               <Card className="h-full">
                 <CardContent className="h-full p-0">
                   <div className="relative h-full min-h-[300px] w-full overflow-hidden rounded-lg">
