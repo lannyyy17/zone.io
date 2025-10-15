@@ -8,8 +8,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash } from 'lucide-react';
-import { useMemo } from 'react';
+import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2 } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { NetworkSignal } from '@/lib/types';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import {
@@ -20,8 +20,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockNetworkSignals } from '@/lib/mock-data';
+import { mockNetworkSignals, generateMockSignal } from '@/lib/mock-data';
 import { Badge } from './ui/badge';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
+import { summarizeSession } from '@/ai/flows/summarize-session-flow';
+import { toast } from '@/hooks/use-toast';
+import { getAddressFromCoordinates } from '@/services/geocoding';
 
 
 function getSignalQuality(signal: number): {
@@ -101,14 +110,90 @@ function SessionStats({ data }: { data: NetworkSignal[] }) {
     )
 }
 
+const chartConfig = {
+    signal: {
+      label: 'Signal (dBm)',
+      color: 'hsl(var(--primary))',
+    },
+};
+
+function SignalChart({ data }: { data: NetworkSignal[] }) {
+    const chartData = useMemo(() => {
+        if (!data) return [];
+        return data.map(d => ({
+            time: new Date(d.timestamp).toLocaleTimeString(),
+            signal: d.signalStrength
+        })).reverse();
+    }, [data]);
+
+    return (
+        <Card className="mb-4">
+            <CardHeader>
+                <CardTitle>Signal Strength Over Time</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ChartContainer config={chartConfig} className="h-64 w-full">
+                  <AreaChart data={chartData} margin={{ left: -20, right: 20, top: 5, bottom: 5 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="time"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickFormatter={(value) => value}
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" />}
+                      />
+                      <Area
+                        dataKey="signal"
+                        type="natural"
+                        fill="hsl(var(--primary))"
+                        fillOpacity={0.4}
+                        stroke="hsl(var(--primary))"
+                        stackId="a"
+                      />
+                  </AreaChart>
+                </ChartContainer>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function ZoneExplorerClient() {
   const { selectedSession } = useSelectedSession();
+  const [signalData, setSignalData] = useState<NetworkSignal[]>([]);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
-  const signalData: NetworkSignal[] = useMemo(() => {
-    if (!selectedSession) return [];
-    return mockNetworkSignals.filter(
+  useEffect(() => {
+    if (!selectedSession) {
+      setSignalData([]);
+      return;
+    };
+
+    const initialData = mockNetworkSignals.filter(
       (signal) => signal.sessionId === selectedSession.id
     );
+    setSignalData(initialData);
+
+    const isLive = selectedSession.endTime === null;
+    let interval: NodeJS.Timeout | undefined;
+
+    if (isLive) {
+        interval = setInterval(() => {
+            setSignalData(prevData => [...prevData, generateMockSignal(selectedSession.id)])
+        }, 5000);
+    }
+
+    return () => {
+        if (interval) {
+            clearInterval(interval)
+        }
+    }
+
   }, [selectedSession]);
 
 
@@ -132,6 +217,46 @@ export function ZoneExplorerClient() {
     document.body.removeChild(link);
   };
 
+  const handleAiSummary = async () => {
+    if (!signalData) return;
+    setIsAiLoading(true);
+    setAiSummary(null);
+    try {
+        const result = await summarizeSession({ signals: signalData });
+        setAiSummary(result.summary);
+    } catch(e) {
+        console.error(e);
+        toast({
+            variant: "destructive",
+            title: "AI Summary Failed",
+            description: "Could not generate AI summary. Please try again later."
+        });
+    } finally {
+        setIsAiLoading(false);
+    }
+  }
+
+  const handleRowClick = async (signal: NetworkSignal) => {
+    setIsGeocoding(true);
+    try {
+        const address = await getAddressFromCoordinates(signal.latitude, signal.longitude);
+        toast({
+            title: "Location Details",
+            description: address,
+        });
+    } catch (e) {
+        console.error(e);
+        toast({
+            variant: "destructive",
+            title: "Geocoding Failed",
+            description: "Could not retrieve address for this point.",
+        });
+    } finally {
+        setIsGeocoding(false);
+    }
+  }
+
+
   const tableData = useMemo(() => {
     if (!signalData) return [];
     return signalData.sort((a, b) => b.timestamp - a.timestamp);
@@ -147,6 +272,15 @@ export function ZoneExplorerClient() {
             : 'Select a Session'}
         </h2>
         <div className="flex items-center gap-2">
+            <Button
+                onClick={handleAiSummary}
+                disabled={!signalData || signalData.length === 0 || isAiLoading}
+                size="sm"
+                variant="outline"
+            >
+                {isAiLoading ? <Loader2 className="mr-2 animate-spin" /> : <Bot className="mr-2" />}
+                <span className="hidden sm:inline">Get AI Summary</span>
+            </Button>
           <Button
             onClick={exportToCSV}
             disabled={!signalData || signalData.length === 0}
@@ -178,14 +312,17 @@ export function ZoneExplorerClient() {
         {selectedSession && (
             <>
             <SessionStats data={signalData} />
-            <div className="h-96 w-full animate-pulse bg-muted rounded-lg mb-4">
+            { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
+            { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><p className="whitespace-pre-wrap">{aiSummary}</p></CardContent></Card>}
+            <SignalChart data={signalData} />
+            <div className="h-64 w-full animate-pulse bg-muted rounded-lg mb-4">
                 <div className="flex items-center justify-center h-full text-muted-foreground">Map view is currently disabled.</div>
             </div>
               <Card>
                 <CardHeader>
                   <CardTitle>Raw Signal Data</CardTitle>
                   <CardDescription>
-                    Real-time feed of collected signal data points for the selected session.
+                    Real-time feed of collected signal data points for the selected session. Click a row to geocode.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -205,7 +342,7 @@ export function ZoneExplorerClient() {
                           {tableData.map((d) => {
                             const quality = getSignalQuality(d.signalStrength);
                             return (
-                                <TableRow key={d.id} className="cursor-pointer">
+                                <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleRowClick(d)}>
                                 <TableCell>
                                     {new Date(d.timestamp).toLocaleString()}
                                 </TableCell>

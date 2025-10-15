@@ -24,7 +24,7 @@ export const mockSessions: Session[] = [
   },
 ];
 
-export const mockNetworkSignals: NetworkSignal[] = [
+export let mockNetworkSignals: NetworkSignal[] = [
   // Data for Downtown Office (session-1)
   { id: 'sig-1', sessionId: 'session-1', latitude: 34.0522, longitude: -118.2437, signalStrength: -55, timestamp: new Date('2024-07-20T10:01:00Z').getTime() },
   { id: 'sig-2', sessionId: 'session-1', latitude: 34.0525, longitude: -118.2440, signalStrength: -85, timestamp: new Date('2024-07-20T10:05:00Z').getTime() },
@@ -41,3 +41,17 @@ export const mockNetworkSignals: NetworkSignal[] = [
   { id: 'sig-9', sessionId: 'session-3', latitude: 34.0224, longitude: -118.2851, signalStrength: -60, timestamp: new Date('2024-07-22T09:16:00Z').getTime() },
   { id: 'sig-10', sessionId: 'session-3', latitude: 34.0220, longitude: -118.2855, signalStrength: -75, timestamp: new Date('2024-07-22T09:20:00Z').getTime() },
 ];
+
+export function generateMockSignal(sessionId: string): NetworkSignal {
+    const lastSignal = mockNetworkSignals[mockNetworkSignals.length -1];
+    const newSignal: NetworkSignal = {
+        id: `sig-${mockNetworkSignals.length + 1}`,
+        sessionId,
+        latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0001,
+        longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0001,
+        signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
+        timestamp: Date.now(),
+    }
+    mockNetworkSignals.push(newSignal);
+    return newSignal;
+}
