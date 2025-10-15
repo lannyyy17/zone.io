@@ -11,10 +11,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DownloadIcon, PlusIcon, MinusIcon } from 'lucide-react';
-import { useState, useMemo } from 'react';
-import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import { useState, useMemo, useEffect } from 'react';
 import type { NetworkSignal } from '@/lib/types';
-import { collection, query, where } from 'firebase/firestore';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import {
   Table,
@@ -24,37 +22,46 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { mockNetworkSignals } from '@/lib/mock-data';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
   loading: () => <div className="h-full w-full animate-pulse bg-muted" />,
 });
 
-// A default location (e.g., Los Angeles)
 const DEFAULT_CENTER: [number, number] = [34.0522, -118.2437];
 const DEFAULT_ZOOM = 10;
 
 export function ZoneExplorerClient() {
-  const { firestore, user } = useFirebase();
   const { selectedSession } = useSelectedSession();
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [activeTab, setActiveTab] = useState('map');
 
-  // This query will fetch all network signals for the selected session for the current user.
-  const signalsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !selectedSession) return null;
-    return query(
-      collection(firestore, `users/${user.uid}/network_signals`),
-      where('sessionId', '==', selectedSession.id)
+  const signalData: NetworkSignal[] = useMemo(() => {
+    if (!selectedSession) return [];
+    return mockNetworkSignals.filter(
+      (signal) => signal.sessionId === selectedSession.id
     );
-  }, [firestore, user, selectedSession]);
+  }, [selectedSession]);
 
-  const { data: signalData, isLoading } =
-    useCollection<NetworkSignal>(signalsQuery);
+  useEffect(() => {
+    if (signalData && signalData.length > 0) {
+      const latitudes = signalData.map(s => s.latitude);
+      const longitudes = signalData.map(s => s.longitude);
+      const avgLat = latitudes.reduce((a, b) => a + b, 0) / latitudes.length;
+      const avgLon = longitudes.reduce((a, b) => a + b, 0) / longitudes.length;
+      setCenter([avgLat, avgLon]);
+      setZoom(13);
+    } else {
+        setCenter(DEFAULT_CENTER);
+        setZoom(DEFAULT_ZOOM);
+    }
+  }, [signalData]);
+
 
   const exportToCSV = () => {
-    if (!signalData) return;
+    if (!signalData || !selectedSession) return;
     const headers = ['ID,Latitude,Longitude,SignalStrength,Timestamp'];
     const rows = signalData.map(
       (d) =>
@@ -75,7 +82,6 @@ export function ZoneExplorerClient() {
 
   const heatmapData = useMemo(() => {
     if (!signalData) return [];
-    // The heatmap layer expects [lat, lng, intensity]
     return signalData.map((d) => [d.latitude, d.longitude, d.signalStrength]);
   }, [signalData]);
 
@@ -85,24 +91,25 @@ export function ZoneExplorerClient() {
   }, [signalData]);
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
-        <h2 className="text-2xl font-bold tracking-tight">
+    <div className="flex h-screen flex-col">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-6">
+        <h2 className="truncate text-lg font-bold tracking-tight sm:text-xl md:text-2xl">
           {selectedSession
-            ? selectedSession.locationName ?? `Session ${selectedSession.id}`
+            ? selectedSession.locationName ?? `Session ${selectedSession.id.slice(0,6)}...`
             : 'Dashboard'}
         </h2>
         <div className="flex items-center gap-2">
           <Button
             onClick={exportToCSV}
             disabled={!signalData || signalData.length === 0}
+            size="sm"
           >
             <DownloadIcon className="mr-2" />
-            Export Data
+            <span className="hidden sm:inline">Export Data</span>
           </Button>
         </div>
       </header>
-      <main className="flex-1 overflow-auto p-4 md:p-6">
+      <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6">
         {!selectedSession && (
           <Card>
             <CardHeader>
@@ -133,7 +140,7 @@ export function ZoneExplorerClient() {
             <TabsContent value="map" className="flex-1">
               <Card className="h-full">
                 <CardContent className="h-full p-0">
-                  <div className="relative h-full w-full overflow-hidden rounded-lg">
+                  <div className="relative h-full min-h-[300px] w-full overflow-hidden rounded-lg">
                     <MapView
                       center={center}
                       zoom={zoom}
@@ -171,14 +178,13 @@ export function ZoneExplorerClient() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isLoading && <p>Loading data...</p>}
                   {tableData && tableData.length > 0 ? (
                     <div className="max-h-[60vh] overflow-auto rounded-lg border">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Timestamp</TableHead>
-                            <TableHead>Signal Strength</TableHead>
+                            <TableHead>Signal</TableHead>
                             <TableHead>Latitude</TableHead>
                             <TableHead>Longitude</TableHead>
                           </TableRow>
@@ -198,7 +204,7 @@ export function ZoneExplorerClient() {
                       </Table>
                     </div>
                   ) : (
-                    !isLoading && <p>No signal data for this session.</p>
+                     <p>No signal data for this session.</p>
                   )}
                 </CardContent>
               </Card>

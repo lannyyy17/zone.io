@@ -1,43 +1,16 @@
 'use client';
 
-import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
-import type { Session } from '@/lib/types';
-import { collection, query, orderBy } from 'firebase/firestore';
-import {
-  SidebarGroup,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarMenuSkeleton,
-} from './ui/sidebar';
+import { useMemo } from 'react';
+import { SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from './ui/sidebar';
 import { MapPin, Clock } from 'lucide-react';
 import { useSelectedSession } from '@/hooks/use-selected-session';
+import { mockSessions } from '@/lib/mock-data';
+import type { Session } from '@/lib/types';
 
 export function SessionHistory() {
-  const { firestore, user } = useFirebase();
   const { selectedSession, setSelectedSession } = useSelectedSession();
 
-  const sessionsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(
-      collection(firestore, `users/${user.uid}/sessions`),
-      orderBy('startTime', 'desc')
-    );
-  }, [firestore, user]);
-
-  const { data: sessions, isLoading } = useCollection<Session>(sessionsQuery);
-
-  if (isLoading) {
-    return (
-      <SidebarGroup>
-        <SidebarMenu>
-          <SidebarMenuSkeleton showIcon />
-          <SidebarMenuSkeleton showIcon />
-          <SidebarMenuSkeleton showIcon />
-        </SidebarMenu>
-      </SidebarGroup>
-    );
-  }
+  const sessions: Session[] = useMemo(() => mockSessions, []);
 
   if (!sessions || sessions.length === 0) {
     return (

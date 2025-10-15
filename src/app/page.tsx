@@ -1,6 +1,6 @@
 'use client';
 
-import { FirebaseClientProvider, useUser } from '@/firebase';
+import { FirebaseClientProvider, useUser, useFirebase } from '@/firebase';
 import { ZoneExplorerClient } from '@/components/zone-explorer-client';
 import { AuthScreen } from '@/components/auth-screen';
 import {
@@ -8,13 +8,18 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarInset,
+  SidebarTrigger
 } from '@/components/ui/sidebar';
 import { SignalIcon } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
 import { SessionHistory } from '@/components/session-history';
+import { useIsMobile } from '@/hooks/use-mobile';
+
 
 function AppContent() {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading } = useFirebase();
+  const isMobile = useIsMobile();
+
 
   if (isUserLoading) {
     return (
@@ -29,9 +34,15 @@ function AppContent() {
     );
   }
 
-  if (!user) {
+  // For this mock data version, we will simulate a logged-in user.
+  // In a real app, you would use: if (!user) { return <AuthScreen />; }
+  const mockUser = user ?? { uid: 'user-1', email: 'test@example.com', displayName: 'Demo User'};
+
+
+  if (!mockUser) {
     return <AuthScreen />;
   }
+
 
   return (
     <>
@@ -52,6 +63,10 @@ function AppContent() {
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
+        <div className="flex items-center gap-2 border-b p-2 md:hidden">
+            <SidebarTrigger/>
+            <h1 className="text-lg font-semibold">Sessions</h1>
+        </div>
         <ZoneExplorerClient />
       </SidebarInset>
     </>
