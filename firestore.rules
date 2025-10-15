@@ -1,0 +1,111 @@
+/**
+ * @file Firebase Security Rules for Zone.io
+ *
+ * @description This ruleset enforces a strict user-ownership model, ensuring that users can only access their own data.
+ * All data is nested under /users/{userId}, providing a clear and secure data hierarchy.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information. Only the authenticated user can read/write their own profile.
+ * - /users/{userId}/sessions/{sessionId}: Stores data collection sessions. Only the owning user can manage sessions.
+ * - /users/{userId}/sessions/{sessionId}/network_signals/{signalId}: Stores network signal data points. Only the owning user can access these data points.
+ *
+ * Key Security Decisions:
+ * - User data is strictly isolated based on userId, ensuring that users can only access their own data.
+ * - Denormalization: The Session and NetworkSignal documents include the userId, eliminating the need for complex `get()` calls in security rules.
+ * - No public listing: Listing operations are restricted to the authenticated user for their own data.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profile information.
+     * @path /users/{userId}
+     * @allow (create) - User with UID 'user123' can create their own profile document at /users/user123 when request.auth.uid == 'user123'.
+     * @allow (get, update, delete) - User with UID 'user123' can read, update and delete their own profile document at /users/user123 when request.auth.uid == 'user123'.
+     * @deny (create) - User with UID 'user456' cannot create a profile document for 'user123' at /users/user123.
+     * @deny (get, update, delete) - User with UID 'user456' cannot read, update or delete the profile document of 'user123' at /users/user123.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data. Validates relational integrity between documents.
+     */
+    match /users/{userId} {
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the existing document
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      // Read rules: get and list
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing all users is not permitted.
+
+      // Write rules: create, update, delete
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to data collection sessions initiated by the user.
+     * @path /users/{userId}/sessions/{sessionId}
+     * @allow (create) - User with UID 'user123' can create a session document at /users/user123/sessions/session456 when request.auth.uid == 'user123'.
+     * @allow (get, list, update, delete) - User with UID 'user123' can read, list, update and delete their own session document at /users/user123/sessions/session456.
+     * @deny (create) - User with UID 'user456' cannot create a session document for 'user123' at /users/user123/sessions/session456.
+     * @deny (get, list, update, delete) - User with UID 'user456' cannot read, list, update or delete the session document of 'user123' at /users/user123/sessions/session456.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree. Validates relational integrity between documents.
+     */
+    match /users/{userId}/sessions/{sessionId} {
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the existing document
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      // Read rules: get and list
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      // Write rules: create, update, delete
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to network signal data points collected during a session.
+     * @path /users/{userId}/sessions/{sessionId}/network_signals/{signalId}
+     * @allow (create) - User with UID 'user123' can create a network signal document at /users/user123/sessions/session456/network_signals/signal789 when request.auth.uid == 'user123'.
+     * @allow (get, list, update, delete) - User with UID 'user123' can read, list, update and delete their own network signal document at /users/user123/sessions/session456/network_signals/signal789.
+     * @deny (create) - User with UID 'user456' cannot create a network signal document for 'user123' at /users/user123/sessions/session456/network_signals/signal789.
+     * @deny (get, list, update, delete) - User with UID 'user456' cannot read, list, update or delete the network signal document of 'user123' at /users/user123/sessions/session456/network_signals/signal789.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/sessions/{sessionId}/network_signals/{signalId} {
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the existing document
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      // Read rules: get and list
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      // Write rules: create, update, delete
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}

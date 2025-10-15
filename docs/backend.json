@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "NetworkSignal": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NetworkSignal",
+      "type": "object",
+      "description": "Represents a network signal data point collected by the mobile app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the network signal data point."
+        },
+        "latitude": {
+          "type": "number",
+          "description": "Latitude coordinate of the network signal measurement."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "Longitude coordinate of the network signal measurement."
+        },
+        "signalStrength": {
+          "type": "number",
+          "description": "Signal strength measurement (RSSI) in dBm, ranging from 0 to 100."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Reference to the Session during which this signal was recorded. (Relationship: Session 1:N NetworkSignal)"
+        }
+      },
+      "required": [
+        "id",
+        "latitude",
+        "longitude",
+        "signalStrength",
+        "sessionId"
+      ]
+    },
+    "Session": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Session",
+      "type": "object",
+      "description": "Represents a data collection session initiated by a user on the mobile app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the session."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who initiated this session. (Relationship: User 1:N Session)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the session started.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the session ended. Null if the session is still active.",
+          "format": "date-time"
+        },
+        "locationName": {
+          "type": "string",
+          "description": "Optional name provided by the user to identify the location where the session was recorded."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "startTime"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Zone.io application. Does NOT store authentication information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user."
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information.  User data is isolated based on userId.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (equal to request.auth.uid)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/sessions/{sessionId}",
+        "definition": {
+          "entityName": "Session",
+          "schema": {
+            "$ref": "#/backend/entities/Session"
+          },
+          "description": "Stores data collection sessions initiated by the user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (equal to request.auth.uid)."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique identifier of the session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/sessions/{sessionId}/network_signals/{signalId}",
+        "definition": {
+          "entityName": "NetworkSignal",
+          "schema": {
+            "$ref": "#/backend/entities/NetworkSignal"
+          },
+          "description": "Stores network signal data points collected during a session. Includes denormalized 'userId' and 'sessionId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user (equal to request.auth.uid)."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique identifier of the session."
+            },
+            {
+              "name": "signalId",
+              "description": "The unique identifier of the network signal data point."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure data isolation, scalability, and straightforward security rules.  It leverages path-based ownership and denormalization to avoid complex `get()` calls in security rules, thus ensuring Authorization Independence.  Each user's data is stored under their own user ID, making it simple to enforce that users can only access their own data. This approach also enhances scalability by distributing data across multiple user-specific collections.\n\nThe structure supports required QAPs as follows:\n\n*   **Secure List Operations (QAPs):** By storing each user's sessions and network signals under their user ID, listing operations are naturally scoped to the authenticated user.  Security rules can easily restrict list access to the `request.auth.uid`.\n\n*   **Data Isolation (NF-2.0):**  The path-based ownership (`/users/{userId}/...`) inherently isolates user data, as security rules can easily enforce that only the user with the matching `userId` can access the data.\n\n*   **Authorization Independence:**  The `Session` and `NetworkSignal` documents include the `userId`, denormalizing the authorization context.  This eliminates the need for security rules to perform `get()` operations to verify ownership, allowing for atomic operations.\n\nThis design adheres to the core design principles, prioritizing Authorization Independence, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters). It uses Structural Segregation by ensuring that all data within a user's path has the same access requirements (private to the user). The structure also promotes Data Clarity and Predictability with consistent naming conventions and explicit state modeling."
+  }
+}
