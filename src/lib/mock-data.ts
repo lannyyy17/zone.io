@@ -45,12 +45,12 @@ export let mockNetworkSignals: NetworkSignal[] = [
 export function generateMockSignal(sessionId: string): NetworkSignal {
     const lastSignal = mockNetworkSignals[mockNetworkSignals.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
     const newSignal: NetworkSignal = {
-        id: `sig-${mockNetworkSignals.length + 1}`,
+        id: `sig-${Math.random().toString(36).substr(2, 9)}`,
         sessionId,
-        latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0001,
-        longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0001,
+        latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0005,
+        longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0005,
         signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
-        timestamp: Date.now(),
+        timestamp: Date.now() - Math.floor(Math.random() * 30000), // within the last 30s
     }
     mockNetworkSignals.push(newSignal);
     return newSignal;
@@ -64,13 +64,21 @@ export function updateMockSessionName(sessionId: string, newName: string): Sessi
 }
 
 export function createMockSession(): { newSession: Session, allSessions: Session[] } {
+    const sessionCount = mockSessions.length + 1;
     const newSession: Session = {
-        id: `session-${mockSessions.length + 1}`,
+        id: `session-${sessionCount}`,
         userId: 'user-1',
         startTime: Date.now(),
         endTime: null, // Active session
-        locationName: `Live Session ${mockSessions.length + 1}`,
+        locationName: `New Session ${sessionCount}`,
     };
+
+    // For a 30 second collection, generate 10-15 data points
+    const numPoints = Math.floor(Math.random() * 6) + 10;
+    for (let i = 0; i < numPoints; i++) {
+        generateMockSignal(newSession.id);
+    }
+    
     mockSessions = [newSession, ...mockSessions];
     return { newSession, allSessions: mockSessions };
 }

@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw } from 'lucide-react';
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import type { NetworkSignal } from '@/lib/types';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import {
@@ -33,6 +33,7 @@ import { toast } from '@/hooks/use-toast';
 import { getAddressFromCoordinates } from '@/services/geocoding';
 import MapView from './map-view';
 import { Input } from './ui/input';
+import { Progress } from './ui/progress';
 
 
 function getSignalQuality(signal: number): {
@@ -163,19 +164,41 @@ function SignalChart({ data }: { data: NetworkSignal[] }) {
     );
 }
 
+function CollectionInProgressView({ progress }: { progress: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Collecting Network Data</CardTitle>
+        <CardDescription>
+          Please wait while we gather signal strength information. This will take about 30 seconds.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center justify-center gap-4 p-10">
+        <Wifi className="size-16 animate-pulse text-primary" />
+        <Progress value={progress} className="w-full" />
+        <p className="text-sm text-muted-foreground">{Math.round(progress)}% complete</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+
 export function ZoneExplorerClient() {
-  const { selectedSession, setSelectedSession, setSessions } = useSelectedSession();
+  const { selectedSession, setSelectedSession, setSessions, isCollecting } = useSelectedSession();
   const [signalData, setSignalData] = useState<NetworkSignal[]>([]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
+  const [collectionProgress, setCollectionProgress] = useState(0);
+
 
   useEffect(() => {
     if (!selectedSession) {
       setSignalData([]);
       setIsEditingName(false);
+      setAiSummary(null);
       return;
     };
 
@@ -203,6 +226,41 @@ export function ZoneExplorerClient() {
     }
 
   }, [selectedSession]);
+
+  const triggerRename = useCallback(() => {
+    if (selectedSession && !selectedSession.locationName?.includes("Live Session")) {
+        setIsEditingName(true);
+    }
+  }, [selectedSession]);
+
+  useEffect(() => {
+    if(isCollecting) {
+        setSignalData([]);
+        setAiSummary(null);
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += (100 / 30);
+            setCollectionProgress(progress);
+            if(progress >= 100) {
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    } else {
+        setCollectionProgress(0);
+        // This effect will run after collection is finished
+        // or when a new session is selected.
+        if (selectedSession && selectedSession.endTime !== null) {
+            const collectedData = mockNetworkSignals.filter(s => s.sessionId === selectedSession.id);
+            setSignalData(collectedData);
+            // If the session was just created, prompt for a name.
+            if (Date.now() - selectedSession.startTime < 32000) { // a bit more than 30s
+                setIsEditingName(true);
+            }
+        }
+    }
+  }, [isCollecting, selectedSession])
 
 
   const exportToCSV = () => {
@@ -312,6 +370,7 @@ export function ZoneExplorerClient() {
                         onChange={(e) => setNewSessionName(e.target.value)}
                         className="h-9 text-lg font-bold sm:text-xl md:text-2xl"
                         onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                        autoFocus
                     />
                     <Button onClick={handleSaveName} size="icon" className="h-9 w-9"><Save /></Button>
                  </div>
@@ -322,7 +381,7 @@ export function ZoneExplorerClient() {
                     : 'Select a Session'}
                 </h2>
             )}
-             {selectedSession && !isEditingName && (
+             {selectedSession && !isEditingName && !isCollecting && (
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditingName(true)}>
                     <Edit />
                 </Button>
@@ -331,7 +390,7 @@ export function ZoneExplorerClient() {
         <div className="flex items-center gap-2">
             <Button
                 onClick={handleRefresh}
-                disabled={!selectedSession}
+                disabled={!selectedSession || isCollecting}
                 size="sm"
                 variant="outline"
             >
@@ -340,7 +399,7 @@ export function ZoneExplorerClient() {
             </Button>
             <Button
                 onClick={handleAiSummary}
-                disabled={!signalData || signalData.length === 0 || isAiLoading}
+                disabled={!signalData || signalData.length === 0 || isAiLoading || isCollecting}
                 size="sm"
                 variant="outline"
             >
@@ -349,7 +408,7 @@ export function ZoneExplorerClient() {
             </Button>
           <Button
             onClick={exportToCSV}
-            disabled={!signalData || signalData.length === 0}
+            disabled={!signalData || signalData.length === 0 || isCollecting}
             size="sm"
           >
             <DownloadIcon className="mr-2" />
@@ -358,24 +417,26 @@ export function ZoneExplorerClient() {
         </div>
       </header>
       <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6">
-        {!selectedSession && (
+        {isCollecting && selectedSession && <CollectionInProgressView progress={collectionProgress} />}
+
+        {!selectedSession && !isCollecting && (
           <Card>
             <CardHeader>
               <CardTitle>Welcome to Zone Explorer</CardTitle>
               <CardDescription>
-                Select a mapping session from the sidebar to visualize signal strength.
+                Select a mapping session from the sidebar to visualize signal strength, or start a new one.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p>
-                Once you have collected data with the Zone.io mobile app, your sessions
-                will appear in the sidebar. Click on a session to
-                load its data.
+                Your completed sessions will appear in the sidebar. Click on a session to
+                load its data, or click "Start New Session" to begin a 30-second data collection.
               </p>
             </CardContent>
           </Card>
         )}
-        {selectedSession && (
+
+        {selectedSession && !isCollecting && (
             <>
             <SessionStats data={signalData} />
             { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
