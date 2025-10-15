@@ -10,17 +10,20 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, PlusIcon, FilterIcon, MinusIcon } from 'lucide-react';
+import { DownloadIcon, PlusIcon, MinusIcon } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import type { NetworkSignal } from '@/lib/types';
+import { collection, query, where } from 'firebase/firestore';
+import { useSelectedSession } from '@/hooks/use-selected-session';
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { RawDataTable, type SignalData } from '@/components/raw-data-table';
-import { useState } from 'react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
@@ -29,179 +32,179 @@ const MapView = dynamic(() => import('@/components/map-view'), {
 
 // A default location (e.g., Los Angeles)
 const DEFAULT_CENTER: [number, number] = [34.0522, -118.2437];
-const DEFAULT_ZOOM = 13;
-
-const MOCK_DATA: SignalData[] = [
-  {
-    id: '1',
-    timestamp: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
-    carrier: 'Verizon',
-    rssi: -85,
-    latitude: 34.0522,
-    longitude: -118.2437,
-  },
-  {
-    id: '2',
-    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    carrier: 'AT&T',
-    rssi: -92,
-    latitude: 34.053,
-    longitude: -118.244,
-  },
-  {
-    id: '3',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    carrier: 'T-Mobile',
-    rssi: -78,
-    latitude: 34.054,
-    longitude: -118.245,
-  },
-  {
-    id: '4',
-    timestamp: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
-    carrier: 'Verizon',
-    rssi: -88,
-    latitude: 34.055,
-    longitude: -118.246,
-  },
-  {
-    id: '5',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-    carrier: 'AT&T',
-    rssi: -95,
-    latitude: 34.056,
-    longitude: -118.247,
-  },
-];
-
-type Carrier = 'AT&T' | 'Verizon' | 'T-Mobile';
-const ALL_CARRIERS: Carrier[] = ['AT&T', 'Verizon', 'T-Mobile'];
+const DEFAULT_ZOOM = 10;
 
 export function ZoneExplorerClient() {
+  const { firestore, user } = useFirebase();
+  const { selectedSession } = useSelectedSession();
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [activeTab, setActiveTab] = useState('map');
-  const [selectedCarriers, setSelectedCarriers] = useState<Set<Carrier>>(
-    new Set(ALL_CARRIERS)
-  );
 
-  const handleCarrierToggle = (carrier: Carrier) => {
-    setSelectedCarriers((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(carrier)) {
-        newSet.delete(carrier);
-      } else {
-        newSet.add(carrier);
-      }
-      return newSet;
-    });
-  };
-
-  const handleRowClick = (data: SignalData) => {
-    setCenter([data.latitude, data.longitude]);
-    setZoom(15);
-    setActiveTab('map');
-  };
-  
-  const exportToCSV = () => {
-    const headers = ['ID,Timestamp,Carrier,RSSI,Latitude,Longitude'];
-    const rows = filteredData.map(d => 
-        `${d.id},${d.timestamp},${d.carrier},${d.rssi},${d.latitude},${d.longitude}`
+  // This query will fetch all network signals for the selected session for the current user.
+  const signalsQuery = useMemoFirebase(() => {
+    if (!firestore || !user || !selectedSession) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/network_signals`),
+      where('sessionId', '==', selectedSession.id)
     );
-    const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows).join("\n");
+  }, [firestore, user, selectedSession]);
+
+  const { data: signalData, isLoading } =
+    useCollection<NetworkSignal>(signalsQuery);
+
+  const exportToCSV = () => {
+    if (!signalData) return;
+    const headers = ['ID,Latitude,Longitude,SignalStrength,Timestamp'];
+    const rows = signalData.map(
+      (d) =>
+        `${d.id},${d.latitude},${d.longitude},${d.signalStrength},${new Date(
+          d.timestamp
+        ).toISOString()}`
+    );
+    const csvContent =
+      'data:text/csv;charset=utf-8,' + headers.concat(rows).join('\n');
     const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "signal_data.csv");
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `session_${selectedSession?.id}_signals.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const filteredData = MOCK_DATA.filter((d) =>
-    selectedCarriers.has(d.carrier)
-  );
+  const heatmapData = useMemo(() => {
+    if (!signalData) return [];
+    // The heatmap layer expects [lat, lng, intensity]
+    return signalData.map((d) => [d.latitude, d.longitude, d.signalStrength]);
+  }, [signalData]);
+
+  const tableData = useMemo(() => {
+    if (!signalData) return [];
+    return signalData.sort((a, b) => b.timestamp - a.timestamp);
+  }, [signalData]);
 
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+        <h2 className="text-2xl font-bold tracking-tight">
+          {selectedSession
+            ? selectedSession.locationName ?? `Session ${selectedSession.id}`
+            : 'Dashboard'}
+        </h2>
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <FilterIcon className="mr-2" />
-                Filter
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Filter by Carrier</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {ALL_CARRIERS.map((carrier) => (
-                <DropdownMenuCheckboxItem
-                  key={carrier}
-                  checked={selectedCarriers.has(carrier)}
-                  onCheckedChange={() => handleCarrierToggle(carrier)}
-                >
-                  {carrier}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button onClick={exportToCSV}>
+          <Button
+            onClick={exportToCSV}
+            disabled={!signalData || signalData.length === 0}
+          >
             <DownloadIcon className="mr-2" />
             Export Data
           </Button>
         </div>
       </header>
       <main className="flex-1 overflow-auto p-4 md:p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="map">Map View</TabsTrigger>
-            <TabsTrigger value="data">Raw Data</TabsTrigger>
-          </TabsList>
-          <TabsContent value="map" className="h-full">
-            <Card className="h-[calc(100%-40px)]">
-              <CardContent className="h-full p-0">
-                <div className="relative h-full w-full overflow-hidden rounded-lg">
-                  <MapView center={center} zoom={zoom} data={filteredData} />
-                  <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="bg-background"
-                      onClick={() => setZoom((z) => Math.min(z + 1, 18))}
-                    >
-                      <PlusIcon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="bg-background"
-                      onClick={() => setZoom((z) => Math.max(z - 1, 1))}
-                    >
-                      <MinusIcon className="h-4 w-4" />
-                    </Button>
+        {!selectedSession && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome to Zone Explorer</CardTitle>
+              <CardDescription>
+                Select a session from the sidebar to view the signal heatmap.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>
+                Once you have collected data with the mobile app, your sessions
+                will appear in the sidebar on the left. Click on a session to
+                load the data and visualize it on the map.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        {selectedSession && (
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex h-full flex-col"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="map">Map View</TabsTrigger>
+              <TabsTrigger value="data">Raw Data</TabsTrigger>
+            </TabsList>
+            <TabsContent value="map" className="flex-1">
+              <Card className="h-full">
+                <CardContent className="h-full p-0">
+                  <div className="relative h-full w-full overflow-hidden rounded-lg">
+                    <MapView
+                      center={center}
+                      zoom={zoom}
+                      data={heatmapData}
+                    />
+                    <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="bg-background"
+                        onClick={() => setZoom((z) => Math.min(z + 1, 18))}
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="bg-background"
+                        onClick={() => setZoom((z) => Math.max(z - 1, 1))}
+                      >
+                        <MinusIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="data">
-            <Card>
-              <CardHeader>
-                <CardTitle>Raw Signal Data</CardTitle>
-                <CardDescription>
-                  Real-time feed of collected signal data points. Click a row to
-                  view on map.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RawDataTable data={filteredData} onRowClick={handleRowClick} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="data" className="flex-1 overflow-y-auto">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Raw Signal Data</CardTitle>
+                  <CardDescription>
+                    Real-time feed of collected signal data points for the
+                    selected session.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoading && <p>Loading data...</p>}
+                  {tableData && tableData.length > 0 ? (
+                    <div className="max-h-[60vh] overflow-auto rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Timestamp</TableHead>
+                            <TableHead>Signal Strength</TableHead>
+                            <TableHead>Latitude</TableHead>
+                            <TableHead>Longitude</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {tableData.map((d) => (
+                            <TableRow key={d.id}>
+                              <TableCell>
+                                {new Date(d.timestamp).toLocaleString()}
+                              </TableCell>
+                              <TableCell>{d.signalStrength} dBm</TableCell>
+                              <TableCell>{d.latitude.toFixed(6)}</TableCell>
+                              <TableCell>{d.longitude.toFixed(6)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    !isLoading && <p>No signal data for this session.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
       </main>
     </div>
   );
