@@ -23,6 +23,13 @@ import {
 import { mockNetworkSignals, generateMockSignal, updateMockSessionName } from '@/lib/mock-data';
 import { Badge } from './ui/badge';
 import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
@@ -67,48 +74,59 @@ function SessionStats({ data }: { data: NetworkSignal[] }) {
         }
     }, [data]);
 
+    const statCards = [
+        { title: "Avg Signal", value: `${stats.average} dBm`, description: "Average signal strength", icon: <Wifi className="h-4 w-4 text-muted-foreground" /> },
+        { title: "Strongest", value: `${stats.strongest} dBm`, description: "Peak signal recorded", icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
+        { title: "Weakest", value: `${stats.weakest} dBm`, description: "Lowest signal recorded", icon: <TrendingDown className="h-4 w-4 text-red-500" /> },
+        { title: "Data Points", value: stats.count, description: "Total signals collected", icon: <Hash className="h-4 w-4 text-muted-foreground" /> },
+    ];
+
+
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Avg Signal</CardTitle>
-                    <Wifi className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{stats.average} dBm</div>
-                    <p className="text-xs text-muted-foreground">Average signal strength</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Strongest</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{stats.strongest} dBm</div>
-                    <p className="text-xs text-muted-foreground">Peak signal recorded</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Weakest</CardTitle>
-                    <TrendingDown className="h-4 w-4 text-red-500" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{stats.weakest} dBm</div>
-                    <p className="text-xs text-muted-foreground">Lowest signal recorded</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Data Points</CardTitle>
-                    <Hash className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{stats.count}</div>
-                    <p className="text-xs text-muted-foreground">Total signals collected</p>
-                </CardContent>
-            </Card>
+        <div className="mb-4">
+            <div className="lg:hidden">
+                <Carousel
+                    opts={{
+                        align: "start",
+                    }}
+                    className="w-full"
+                >
+                    <CarouselContent>
+                        {statCards.map((card, index) => (
+                            <CarouselItem key={index} className="basis-3/4 sm:basis-1/2">
+                                <div className="p-1">
+                                    <Card>
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                                            {card.icon}
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-2xl font-bold">{card.value}</div>
+                                            <p className="text-xs text-muted-foreground">{card.description}</p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="ml-12" />
+                    <CarouselNext className="mr-12" />
+                </Carousel>
+            </div>
+            <div className="hidden lg:grid grid-cols-4 gap-4">
+                 {statCards.map((card, index) => (
+                    <Card key={index}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                            {card.icon}
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{card.value}</div>
+                            <p className="text-xs text-muted-foreground">{card.description}</p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
         </div>
     )
 }
@@ -149,11 +167,24 @@ function SignalChart({ data }: { data: NetworkSignal[] }) {
                         cursor={false}
                         content={<ChartTooltipContent indicator="dot" />}
                       />
+                      <defs>
+                        <linearGradient id="fillSignal" x1="0" y1="0" x2="0" y2="1">
+                          <stop
+                            offset="5%"
+                            stopColor="hsl(var(--primary))"
+                            stopOpacity={0.8}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="hsl(var(--primary))"
+                            stopOpacity={0.1}
+                          />
+                        </linearGradient>
+                      </defs>
                       <Area
                         dataKey="signal"
                         type="natural"
-                        fill="hsl(var(--primary))"
-                        fillOpacity={0.4}
+                        fill="url(#fillSignal)"
                         stroke="hsl(var(--primary))"
                         stackId="a"
                       />
@@ -404,7 +435,7 @@ export function ZoneExplorerClient() {
                 variant="outline"
             >
                 {isAiLoading ? <Loader2 className="mr-2 animate-spin" /> : <Bot className="mr-2" />}
-                <span className="hidden sm:inline">Get AI Summary</span>
+                <span className="hidden sm:inline">AI Summary</span>
             </Button>
           <Button
             onClick={exportToCSV}
@@ -440,7 +471,7 @@ export function ZoneExplorerClient() {
             <>
             <SessionStats data={signalData} />
             { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
-            { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/\n/g, '<br />') }} /></CardContent></Card>}
+            { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/<p>|<\/p>/g, '') }} /></CardContent></Card>}
             <SignalChart data={signalData} />
             <div className="h-64 w-full rounded-lg mb-4">
                 <MapView />
