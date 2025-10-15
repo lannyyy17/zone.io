@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2 } from 'lucide-react';
+import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw } from 'lucide-react';
 import React, { useMemo, useState, useEffect } from 'react';
 import type { NetworkSignal } from '@/lib/types';
 import { useSelectedSession } from '@/hooks/use-selected-session';
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockNetworkSignals, generateMockSignal } from '@/lib/mock-data';
+import { mockNetworkSignals, generateMockSignal, updateMockSessionName } from '@/lib/mock-data';
 import { Badge } from './ui/badge';
 import {
   ChartContainer,
@@ -32,6 +32,7 @@ import { summarizeSession } from '@/ai/flows/summarize-session-flow';
 import { toast } from '@/hooks/use-toast';
 import { getAddressFromCoordinates } from '@/services/geocoding';
 import MapView from './map-view';
+import { Input } from './ui/input';
 
 
 function getSignalQuality(signal: number): {
@@ -163,17 +164,22 @@ function SignalChart({ data }: { data: NetworkSignal[] }) {
 }
 
 export function ZoneExplorerClient() {
-  const { selectedSession } = useSelectedSession();
+  const { selectedSession, setSelectedSession, setSessions } = useSelectedSession();
   const [signalData, setSignalData] = useState<NetworkSignal[]>([]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newSessionName, setNewSessionName] = useState('');
 
   useEffect(() => {
     if (!selectedSession) {
       setSignalData([]);
+      setIsEditingName(false);
       return;
     };
+
+    setNewSessionName(selectedSession.locationName ?? `Session ${selectedSession.id.slice(0, 6)}`);
 
     const initialData = mockNetworkSignals.filter(
       (signal) => signal.sessionId === selectedSession.id
@@ -185,7 +191,8 @@ export function ZoneExplorerClient() {
 
     if (isLive) {
         interval = setInterval(() => {
-            setSignalData(prevData => [...prevData, generateMockSignal(selectedSession.id)])
+            const newSignal = generateMockSignal(selectedSession.id)
+            setSignalData(prevData => [...prevData, newSignal])
         }, 5000);
     }
 
@@ -256,6 +263,36 @@ export function ZoneExplorerClient() {
         setIsGeocoding(false);
     }
   }
+  
+  const handleRefresh = () => {
+    if (!selectedSession) return;
+    const newSignal = generateMockSignal(selectedSession.id);
+    setSignalData(prevData => [...prevData, newSignal]);
+    toast({
+        title: "Data Refreshed",
+        description: "A new signal data point has been added."
+    })
+  }
+
+  const handleSaveName = () => {
+    if (!selectedSession || !newSessionName.trim()) {
+        toast({ variant: 'destructive', title: 'Invalid Name', description: 'Session name cannot be empty.'});
+        return;
+    };
+    
+    // Update mock data state
+    const updatedSessions = updateMockSessionName(selectedSession.id, newSessionName);
+    setSessions(updatedSessions);
+    
+    // Update the selected session in context
+    const updatedSelectedSession = updatedSessions.find(s => s.id === selectedSession.id);
+    if (updatedSelectedSession) {
+        setSelectedSession(updatedSelectedSession);
+    }
+
+    setIsEditingName(false);
+    toast({ title: 'Session Renamed', description: `Session name updated to "${newSessionName}".`});
+  }
 
 
   const tableData = useMemo(() => {
@@ -267,12 +304,40 @@ export function ZoneExplorerClient() {
   return (
     <div className="flex h-screen flex-col">
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-6">
-        <h2 className="truncate text-lg font-bold tracking-tight sm:text-xl md:text-2xl">
-          {selectedSession
-            ? selectedSession.locationName ?? `Session ${selectedSession.id.slice(0,6)}...`
-            : 'Select a Session'}
-        </h2>
+        <div className="flex items-center gap-2 truncate">
+            {isEditingName && selectedSession ? (
+                 <div className="flex items-center gap-2">
+                    <Input 
+                        value={newSessionName}
+                        onChange={(e) => setNewSessionName(e.target.value)}
+                        className="h-9 text-lg font-bold sm:text-xl md:text-2xl"
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                    />
+                    <Button onClick={handleSaveName} size="icon" className="h-9 w-9"><Save /></Button>
+                 </div>
+            ) : (
+                <h2 className="truncate text-lg font-bold tracking-tight sm:text-xl md:text-2xl">
+                {selectedSession
+                    ? selectedSession.locationName ?? `Session ${selectedSession.id.slice(0,6)}...`
+                    : 'Select a Session'}
+                </h2>
+            )}
+             {selectedSession && !isEditingName && (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditingName(true)}>
+                    <Edit />
+                </Button>
+            )}
+        </div>
         <div className="flex items-center gap-2">
+            <Button
+                onClick={handleRefresh}
+                disabled={!selectedSession}
+                size="sm"
+                variant="outline"
+            >
+                <RefreshCw className="mr-2" />
+                <span className="hidden sm:inline">Refresh</span>
+            </Button>
             <Button
                 onClick={handleAiSummary}
                 disabled={!signalData || signalData.length === 0 || isAiLoading}
@@ -347,6 +412,7 @@ export function ZoneExplorerClient() {
                                 <TableCell>
                                     {new Date(d.timestamp).toLocaleString()}
                                 </TableCell>
+
                                 <TableCell>{d.signalStrength}</TableCell>
                                 <TableCell>
                                     <Badge variant={quality.variant}>{quality.label}</Badge>
@@ -370,5 +436,3 @@ export function ZoneExplorerClient() {
     </div>
   );
 }
-
-    

@@ -4,14 +4,13 @@ import { useMemo } from 'react';
 import { SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from './ui/sidebar';
 import { MapPin, Dot } from 'lucide-react';
 import { useSelectedSession } from '@/hooks/use-selected-session';
-import { mockSessions, mockNetworkSignals } from '@/lib/mock-data';
+import { mockNetworkSignals } from '@/lib/mock-data';
 import type { Session } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 export function SessionHistory() {
-  const { selectedSession, setSelectedSession } = useSelectedSession();
+  const { selectedSession, setSelectedSession, sessions } = useSelectedSession();
 
-  const sessions: Session[] = useMemo(() => mockSessions, []);
   const signalsBySession = useMemo(() => {
     return mockNetworkSignals.reduce((acc, signal) => {
         if (!acc[signal.sessionId]) {

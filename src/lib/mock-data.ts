@@ -1,6 +1,6 @@
 import type { Session, NetworkSignal } from './types';
 
-export const mockSessions: Session[] = [
+export let mockSessions: Session[] = [
   {
     id: 'session-1',
     userId: 'user-1',
@@ -43,7 +43,7 @@ export let mockNetworkSignals: NetworkSignal[] = [
 ];
 
 export function generateMockSignal(sessionId: string): NetworkSignal {
-    const lastSignal = mockNetworkSignals[mockNetworkSignals.length -1];
+    const lastSignal = mockNetworkSignals[mockNetworkSignals.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
     const newSignal: NetworkSignal = {
         id: `sig-${mockNetworkSignals.length + 1}`,
         sessionId,
@@ -54,4 +54,11 @@ export function generateMockSignal(sessionId: string): NetworkSignal {
     }
     mockNetworkSignals.push(newSignal);
     return newSignal;
+}
+
+export function updateMockSessionName(sessionId: string, newName: string): Session[] {
+    mockSessions = mockSessions.map(session => 
+        session.id === sessionId ? { ...session, locationName: newName } : session
+    );
+    return mockSessions;
 }
