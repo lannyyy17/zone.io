@@ -1,6 +1,5 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import {
   Card,
   CardContent,
@@ -8,10 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, PlusIcon, MinusIcon, Wifi, TrendingUp, TrendingDown, Hash } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash } from 'lucide-react';
+import { useMemo } from 'react';
 import type { NetworkSignal } from '@/lib/types';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import {
@@ -23,16 +21,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { mockNetworkSignals } from '@/lib/mock-data';
-import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
 
-const MapView = dynamic(() => import('@/components/map-view'), {
-  ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-muted" />,
-});
-
-const DEFAULT_CENTER: [number, number] = [34.0522, -118.2437];
-const DEFAULT_ZOOM = 10;
 
 function getSignalQuality(signal: number): {
   label: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Unusable';
@@ -113,9 +103,6 @@ function SessionStats({ data }: { data: NetworkSignal[] }) {
 
 export function ZoneExplorerClient() {
   const { selectedSession } = useSelectedSession();
-  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [activeTab, setActiveTab] = useState('map');
 
   const signalData: NetworkSignal[] = useMemo(() => {
     if (!selectedSession) return [];
@@ -123,20 +110,6 @@ export function ZoneExplorerClient() {
       (signal) => signal.sessionId === selectedSession.id
     );
   }, [selectedSession]);
-
-  useEffect(() => {
-    if (signalData && signalData.length > 0) {
-      const latitudes = signalData.map(s => s.latitude);
-      const longitudes = signalData.map(s => s.longitude);
-      const avgLat = latitudes.reduce((a, b) => a + b, 0) / latitudes.length;
-      const avgLon = longitudes.reduce((a, b) => a + b, 0) / longitudes.length;
-      setCenter([avgLat, avgLon]);
-      setZoom(13);
-    } else {
-        setCenter(DEFAULT_CENTER);
-        setZoom(DEFAULT_ZOOM);
-    }
-  }, [signalData]);
 
 
   const exportToCSV = () => {
@@ -163,12 +136,6 @@ export function ZoneExplorerClient() {
     if (!signalData) return [];
     return signalData.sort((a, b) => b.timestamp - a.timestamp);
   }, [signalData]);
-
-  const handleRowClick = (point: NetworkSignal) => {
-    setCenter([point.latitude, point.longitude]);
-    setZoom(16);
-    setActiveTab('map');
-  };
 
 
   return (
@@ -203,7 +170,7 @@ export function ZoneExplorerClient() {
               <p>
                 Once you have collected data with the Zone.io mobile app, your sessions
                 will appear in the sidebar. Click on a session to
-                load its data and see the signal heatmap.
+                load its data.
               </p>
             </CardContent>
           </Card>
@@ -211,47 +178,9 @@ export function ZoneExplorerClient() {
         {selectedSession && (
             <>
             <SessionStats data={signalData} />
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="flex h-full flex-col"
-          >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="map">Heatmap</TabsTrigger>
-              <TabsTrigger value="data">Raw Data</TabsTrigger>
-            </TabsList>
-            <TabsContent value="map" className={cn("flex-1", activeTab !== 'map' && 'hidden')}>
-              <Card className="h-full">
-                <CardContent className="h-full p-0">
-                  <div className="relative h-full min-h-[400px] w-full overflow-hidden rounded-lg">
-                    <MapView
-                      center={center}
-                      zoom={zoom}
-                      points={signalData}
-                    />
-                    <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="bg-background"
-                        onClick={() => setZoom((z) => Math.min(z + 1, 18))}
-                      >
-                        <PlusIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="bg-background"
-                        onClick={() => setZoom((z) => Math.max(z - 1, 1))}
-                      >
-                        <MinusIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="data" className="flex-1 overflow-y-auto">
+            <div className="h-96 w-full animate-pulse bg-muted rounded-lg mb-4">
+                <div className="flex items-center justify-center h-full text-muted-foreground">Map view is currently disabled.</div>
+            </div>
               <Card>
                 <CardHeader>
                   <CardTitle>Raw Signal Data</CardTitle>
@@ -276,7 +205,7 @@ export function ZoneExplorerClient() {
                           {tableData.map((d) => {
                             const quality = getSignalQuality(d.signalStrength);
                             return (
-                                <TableRow key={d.id} onClick={() => handleRowClick(d)} className="cursor-pointer">
+                                <TableRow key={d.id} className="cursor-pointer">
                                 <TableCell>
                                     {new Date(d.timestamp).toLocaleString()}
                                 </TableCell>
@@ -297,8 +226,6 @@ export function ZoneExplorerClient() {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
           </>
         )}
       </main>
