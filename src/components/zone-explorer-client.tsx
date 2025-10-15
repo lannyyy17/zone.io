@@ -80,11 +80,6 @@ export function ZoneExplorerClient() {
     document.body.removeChild(link);
   };
 
-  const heatmapData = useMemo(() => {
-    if (!signalData) return [];
-    return signalData.map((d) => [d.latitude, d.longitude, d.signalStrength]);
-  }, [signalData]);
-
   const tableData = useMemo(() => {
     if (!signalData) return [];
     return signalData.sort((a, b) => b.timestamp - a.timestamp);
@@ -144,7 +139,6 @@ export function ZoneExplorerClient() {
                     <MapView
                       center={center}
                       zoom={zoom}
-                      data={heatmapData}
                     />
                     <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
                       <Button
