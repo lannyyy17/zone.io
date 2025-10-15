@@ -15,18 +15,6 @@ function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 }
 
-// Fix for broken marker icons in Next.js
-// This needs to be done once globally.
-useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    });
-}, []);
-
-
 interface MapViewProps {
   center: [number, number];
   zoom: number;
@@ -35,15 +23,24 @@ interface MapViewProps {
 
 export default function MapView({ center, zoom, points = [] }: MapViewProps) {
   
+  // Fix for broken marker icons in Next.js
+  // This needs to be done once, and since this component is the only one using Leaflet,
+  // we can do it here inside a useEffect hook.
+  useEffect(() => {
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+  }, []);
+
   return (
     <MapContainer
       center={center}
       zoom={zoom}
       scrollWheelZoom={true}
       style={{ height: '100%', width: '100%' }}
-      // This key prevents the map from being re-initialized when not needed,
-      // but the MapUpdater component handles the dynamic updates.
-      // Using a static key or no key and relying on the child component is the robust pattern.
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
