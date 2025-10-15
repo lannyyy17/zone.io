@@ -62,3 +62,15 @@ export function updateMockSessionName(sessionId: string, newName: string): Sessi
     );
     return mockSessions;
 }
+
+export function createMockSession(): { newSession: Session, allSessions: Session[] } {
+    const newSession: Session = {
+        id: `session-${mockSessions.length + 1}`,
+        userId: 'user-1',
+        startTime: Date.now(),
+        endTime: null, // Active session
+        locationName: `Live Session ${mockSessions.length + 1}`,
+    };
+    mockSessions = [newSession, ...mockSessions];
+    return { newSession, allSessions: mockSessions };
+}
