@@ -31,6 +31,7 @@ import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
 import { summarizeSession } from '@/ai/flows/summarize-session-flow';
 import { toast } from '@/hooks/use-toast';
 import { getAddressFromCoordinates } from '@/services/geocoding';
+import MapView from './map-view';
 
 
 function getSignalQuality(signal: number): {
@@ -313,10 +314,10 @@ export function ZoneExplorerClient() {
             <>
             <SessionStats data={signalData} />
             { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
-            { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><p className="whitespace-pre-wrap">{aiSummary}</p></CardContent></Card>}
+            { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/\n/g, '<br />') }} /></CardContent></Card>}
             <SignalChart data={signalData} />
-            <div className="h-64 w-full animate-pulse bg-muted rounded-lg mb-4">
-                <div className="flex items-center justify-center h-full text-muted-foreground">Map view is currently disabled.</div>
+            <div className="h-64 w-full rounded-lg mb-4">
+                <MapView />
             </div>
               <Card>
                 <CardHeader>
@@ -369,3 +370,5 @@ export function ZoneExplorerClient() {
     </div>
   );
 }
+
+    
