@@ -86,6 +86,13 @@ export function ZoneExplorerClient() {
     return signalData.sort((a, b) => b.timestamp - a.timestamp);
   }, [signalData]);
 
+  const handleRowClick = (point: NetworkSignal) => {
+    setCenter([point.latitude, point.longitude]);
+    setZoom(16);
+    setActiveTab('map');
+  };
+
+
   return (
     <div className="flex h-screen flex-col">
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-6">
@@ -140,6 +147,7 @@ export function ZoneExplorerClient() {
                     <MapView
                       center={center}
                       zoom={zoom}
+                      points={signalData}
                     />
                     <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
                       <Button
@@ -186,7 +194,7 @@ export function ZoneExplorerClient() {
                         </TableHeader>
                         <TableBody>
                           {tableData.map((d) => (
-                            <TableRow key={d.id}>
+                            <TableRow key={d.id} onClick={() => handleRowClick(d)} className="cursor-pointer">
                               <TableCell>
                                 {new Date(d.timestamp).toLocaleString()}
                               </TableCell>
