@@ -28,7 +28,7 @@ export function AuthScreen() {
             <WifiIcon className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold">
-            Welcome to Zone Explorer
+            Welcome to Zone.io
           </CardTitle>
           <CardDescription>
             Sign in to visualize your network signal data.

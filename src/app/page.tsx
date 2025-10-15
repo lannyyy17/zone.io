@@ -27,7 +27,7 @@ function AppContent() {
         <div className="flex flex-col items-center gap-4">
           <SignalIcon className="size-12 animate-pulse text-primary" />
           <p className="text-lg font-semibold text-muted-foreground">
-            Loading Zone Explorer...
+            Loading Zone.io...
           </p>
         </div>
       </div>
@@ -52,7 +52,7 @@ function AppContent() {
             <div className="flex items-center gap-2">
               <SignalIcon className="size-8 text-primary" />
               <h1 className="text-xl font-semibold font-headline">
-                Zone Explorer
+                Zone.io
               </h1>
             </div>
             <UserNav />

@@ -453,7 +453,7 @@ export function ZoneExplorerClient() {
         {!selectedSession && !isCollecting && (
           <Card>
             <CardHeader>
-              <CardTitle>Welcome to Zone Explorer</CardTitle>
+              <CardTitle>Welcome to Zone.io</CardTitle>
               <CardDescription>
                 Select a mapping session from the sidebar to visualize signal strength, or start a new one.
               </CardDescription>
