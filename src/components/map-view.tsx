@@ -36,8 +36,9 @@ export default function MapView({ center, zoom }: MapViewProps) {
       zoom={zoom}
       scrollWheelZoom={true}
       style={{ height: '100%', width: '100%' }}
-      // This prevents the map from being re-initialized
-      whenCreated={() => {}}
+      // This key prevents the map from being re-initialized when not needed,
+      // but the MapUpdater component handles the dynamic updates.
+      // Using a static key or no key and relying on the child component is the robust pattern.
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
