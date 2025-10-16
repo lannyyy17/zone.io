@@ -42,7 +42,7 @@ export let mockNetworkSignals: NetworkSignal[] = [
   { id: 'sig-10', sessionId: 'session-3', latitude: 34.0220, longitude: -118.2855, signalStrength: -75, timestamp: new Date('2024-07-22T09:20:00Z').getTime() },
 ];
 
-export function generateMockSignal(sessionId: string): NetworkSignal {
+export function generateMockSignalForSession(sessionId: string): NetworkSignal {
     const lastSignal = mockNetworkSignals[mockNetworkSignals.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
     const newSignal: NetworkSignal = {
         id: `sig-${Math.random().toString(36).substr(2, 9)}`,
@@ -50,7 +50,7 @@ export function generateMockSignal(sessionId: string): NetworkSignal {
         latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0005,
         longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0005,
         signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
-        timestamp: Date.now() - Math.floor(Math.random() * 30000), // within the last 30s
+        timestamp: Date.now(),
     }
     mockNetworkSignals.push(newSignal);
     return newSignal;
@@ -61,24 +61,4 @@ export function updateMockSessionName(sessionId: string, newName: string): Sessi
         session.id === sessionId ? { ...session, locationName: newName } : session
     );
     return mockSessions;
-}
-
-export function createMockSession(): { newSession: Session, allSessions: Session[] } {
-    const sessionCount = mockSessions.length + 1;
-    const newSession: Session = {
-        id: `session-${sessionCount}`,
-        userId: 'user-1',
-        startTime: Date.now(),
-        endTime: null, // Active session
-        locationName: `New Session ${sessionCount}`,
-    };
-
-    // For a 30 second collection, generate 10-15 data points
-    const numPoints = Math.floor(Math.random() * 6) + 10;
-    for (let i = 0; i < numPoints; i++) {
-        generateMockSignal(newSession.id);
-    }
-    
-    mockSessions = [newSession, ...mockSessions];
-    return { newSession, allSessions: mockSessions };
 }

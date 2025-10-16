@@ -4,7 +4,8 @@ import { useMemo } from 'react';
 import { SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from './ui/sidebar';
 import { MapPin, Dot, PlusCircle } from 'lucide-react';
 import { useSelectedSession } from '@/hooks/use-selected-session';
-import { mockNetworkSignals, createMockSession } from '@/lib/mock-data';
+import { mockNetworkSignals, mockSessions, generateMockSignalForSession } from '@/lib/mock-data';
+import type { Session } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 
@@ -25,7 +26,24 @@ export function SessionHistory() {
     if (isCollecting) return;
     
     setIsCollecting(true);
-    const { newSession, allSessions } = createMockSession();
+    
+    const sessionCount = sessions.length + 1;
+    const newSession: Session = {
+        id: `session-${sessionCount}`,
+        userId: 'user-1',
+        startTime: Date.now(),
+        endTime: null, // Active session
+        locationName: `New Session ${sessionCount}`,
+    };
+
+    // For a 30 second collection, generate 10-15 data points
+    const numPoints = Math.floor(Math.random() * 6) + 10;
+    for (let i = 0; i < numPoints; i++) {
+        generateMockSignalForSession(newSession.id);
+    }
+    
+    const allSessions = [newSession, ...sessions];
+
     setSessions(allSessions);
     setSelectedSession(newSession);
 

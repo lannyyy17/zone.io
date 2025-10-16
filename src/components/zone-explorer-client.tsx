@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockNetworkSignals, generateMockSignal, updateMockSessionName } from '@/lib/mock-data';
+import { mockNetworkSignals, generateMockSignalForSession, updateMockSessionName } from '@/lib/mock-data';
 import { Badge } from './ui/badge';
 import {
   Carousel,
@@ -243,9 +243,9 @@ export function ZoneExplorerClient() {
     const isLive = selectedSession.endTime === null;
     let interval: NodeJS.Timeout | undefined;
 
-    if (isLive) {
+    if (isLive && !isCollecting) { // Only run interval for non-collecting live sessions
         interval = setInterval(() => {
-            const newSignal = generateMockSignal(selectedSession.id)
+            const newSignal = generateMockSignalForSession(selectedSession.id)
             setSignalData(prevData => [...prevData, newSignal])
         }, 5000);
     }
@@ -256,7 +256,7 @@ export function ZoneExplorerClient() {
         }
     }
 
-  }, [selectedSession]);
+  }, [selectedSession, isCollecting]);
 
   const triggerRename = useCallback(() => {
     if (selectedSession && !selectedSession.locationName?.includes("Live Session")) {
@@ -355,7 +355,7 @@ export function ZoneExplorerClient() {
   
   const handleRefresh = () => {
     if (!selectedSession) return;
-    const newSignal = generateMockSignal(selectedSession.id);
+    const newSignal = generateMockSignalForSession(selectedSession.id);
     setSignalData(prevData => [...prevData, newSignal]);
     toast({
         title: "Data Refreshed",
