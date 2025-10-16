@@ -4,31 +4,28 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "NetworkSignal",
       "type": "object",
-      "description": "Represents a network signal data point collected by the mobile app.",
+      "description": "Represents a network signal data point with its location and strength.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the network signal data point."
+          "description": "Unique identifier for the NetworkSignal entity."
         },
         "latitude": {
           "type": "number",
-          "description": "Latitude coordinate of the network signal measurement."
+          "description": "The latitude of the network signal data point."
         },
         "longitude": {
           "type": "number",
-          "description": "Longitude coordinate of the network signal measurement."
+          "description": "The longitude of the network signal data point."
         },
         "signalStrength": {
           "type": "number",
-          "description": "Signal strength measurement (RSSI) in dBm, can be negative."
-        },
-        "sessionId": {
-          "type": "string",
-          "description": "Reference to the Session during which this signal was recorded."
+          "description": "The signal strength at the given latitude and longitude, ranging from 0 to 100."
         },
         "timestamp": {
-            "type": "number",
-            "description": "Timestamp of when the signal was recorded as a unix epoch milliseconds."
+          "type": "string",
+          "description": "The timestamp of the network signal measurement.",
+          "format": "date-time"
         }
       },
       "required": [
@@ -36,86 +33,35 @@
         "latitude",
         "longitude",
         "signalStrength",
-        "sessionId",
         "timestamp"
-      ]
-    },
-    "Session": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Session",
-      "type": "object",
-      "description": "Represents a data collection session initiated by a user on the mobile app.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the session."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who initiated this session."
-        },
-        "startTime": {
-          "type": "number",
-          "description": "Timestamp indicating when the session started as a unix epoch milliseconds."
-        },
-        "endTime": {
-          "type": "number",
-          "description": "Timestamp indicating when the session ended. Null if the session is still active."
-        },
-        "locationName": {
-          "type": "string",
-          "description": "Optional name provided by the user to identify the location where the session was recorded."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "startTime"
-      ]
-    },
-    "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
-      "type": "object",
-      "description": "Represents a user of the Zone.io application. Does NOT store authentication information.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user (matches auth uid)."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user.",
-          "format": "email"
-        },
-        "displayName": {
-          "type": "string",
-          "description": "Display name of the user."
-        }
-      },
-      "required": [
-        "id",
-        "email"
       ]
     }
   },
   "auth": {
     "providers": [
+      "password",
       "anonymous"
     ]
   },
   "firestore": {
-     "/users/{userId}": {
-        "schema": {"$ref": "#/entities/User"},
-        "description": "Stores user profile information."
-      },
-      "/users/{userId}/sessions/{sessionId}": {
-        "schema": {"$ref": "#/entities/Session"},
-        "description": "Stores data collection sessions for a user."
-      },
-      "/users/{userId}/network_signals/{signalId}": {
-        "schema": {"$ref": "#/entities/NetworkSignal"},
-        "description": "Stores all network signal data points for a user, across all sessions."
+    "structure": [
+      {
+        "path": "/network_signals/{networkSignalId}",
+        "definition": {
+          "entityName": "NetworkSignal",
+          "schema": {
+            "$ref": "#/backend/entities/NetworkSignal"
+          },
+          "description": "Collection to store network signal data, including location, strength, and timestamp.",
+          "params": [
+            {
+              "name": "networkSignalId",
+              "description": "Unique identifier for the NetworkSignal document."
+            }
+          ]
+        }
       }
+    ],
+    "reasoning": "The data structure is designed to store network signal data collected from a mobile app for visualization on an interactive map. The core entity is `NetworkSignal`, which includes latitude, longitude, signal strength, and a timestamp.  Since the app's primary function is to display this data without complex user-specific access controls, all data is stored in a single collection named `network_signals`. This simplifies data retrieval for the map visualization. This approach ensures Authorization Independence is not a concern, as there are no user-specific or role-based access restrictions required for this data. QAPs are straightforward because all documents in `network_signals` are accessible for reading and visualization. The structure prioritizes ease of access and visualization over granular access control, which aligns with the crowdsourced nature of the data collection."
   }
 }
