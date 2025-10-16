@@ -20,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockNetworkSignals, generateMockSignalForSession, updateMockSessionName } from '@/lib/mock-data';
 import { Badge } from './ui/badge';
 import {
   Carousel,
@@ -215,8 +214,8 @@ function CollectionInProgressView({ progress }: { progress: number }) {
 
 
 export function ZoneExplorerClient() {
-  const { selectedSession, setSelectedSession, setSessions, isCollecting } = useSelectedSession();
-  const [signalData, setSignalData] = useState<NetworkSignal[]>([]);
+  const { selectedSession, setSelectedSession, sessions, setSessions, isCollecting, signalData, setSignalData } = useSelectedSession();
+  const [sessionSignalData, setSessionSignalData] = useState<NetworkSignal[]>([]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -224,10 +223,9 @@ export function ZoneExplorerClient() {
   const [newSessionName, setNewSessionName] = useState('');
   const [collectionProgress, setCollectionProgress] = useState(0);
 
-
   useEffect(() => {
     if (!selectedSession) {
-      setSignalData([]);
+      setSessionSignalData([]);
       setIsEditingName(false);
       setAiSummary(null);
       return;
@@ -235,18 +233,26 @@ export function ZoneExplorerClient() {
 
     setNewSessionName(selectedSession.locationName ?? `Session ${selectedSession.id.slice(0, 6)}`);
 
-    const initialData = mockNetworkSignals.filter(
+    const currentData = signalData.filter(
       (signal) => signal.sessionId === selectedSession.id
     );
-    setSignalData(initialData);
+    setSessionSignalData(currentData);
 
     const isLive = selectedSession.endTime === null;
     let interval: NodeJS.Timeout | undefined;
 
     if (isLive && !isCollecting) { // Only run interval for non-collecting live sessions
         interval = setInterval(() => {
-            const newSignal = generateMockSignalForSession(selectedSession.id)
-            setSignalData(prevData => [...prevData, newSignal])
+            const lastSignal = signalData[signalData.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
+            const newSignal: NetworkSignal = {
+                id: `sig-${Math.random().toString(36).substr(2, 9)}`,
+                sessionId: selectedSession.id,
+                latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0005,
+                longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0005,
+                signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
+                timestamp: Date.now(),
+            }
+            setSignalData(prev => [...prev, newSignal]);
         }, 5000);
     }
 
@@ -256,7 +262,7 @@ export function ZoneExplorerClient() {
         }
     }
 
-  }, [selectedSession, isCollecting]);
+  }, [selectedSession, isCollecting, signalData, setSignalData]);
 
   const triggerRename = useCallback(() => {
     if (selectedSession && !selectedSession.locationName?.includes("Live Session")) {
@@ -266,7 +272,7 @@ export function ZoneExplorerClient() {
 
   useEffect(() => {
     if(isCollecting) {
-        setSignalData([]);
+        setSessionSignalData([]);
         setAiSummary(null);
         let progress = 0;
         const interval = setInterval(() => {
@@ -283,21 +289,21 @@ export function ZoneExplorerClient() {
         // This effect will run after collection is finished
         // or when a new session is selected.
         if (selectedSession && selectedSession.endTime !== null) {
-            const collectedData = mockNetworkSignals.filter(s => s.sessionId === selectedSession.id);
-            setSignalData(collectedData);
+            const collectedData = signalData.filter(s => s.sessionId === selectedSession.id);
+            setSessionSignalData(collectedData);
             // If the session was just created, prompt for a name.
             if (Date.now() - selectedSession.startTime < 32000) { // a bit more than 30s
                 setIsEditingName(true);
             }
         }
     }
-  }, [isCollecting, selectedSession])
+  }, [isCollecting, selectedSession, signalData])
 
 
   const exportToCSV = () => {
-    if (!signalData || !selectedSession) return;
+    if (!sessionSignalData || !selectedSession) return;
     const headers = ['ID,Latitude,Longitude,SignalStrength,Timestamp,Quality'];
-    const rows = signalData.map(
+    const rows = sessionSignalData.map(
       (d) =>
         `${d.id},${d.latitude},${d.longitude},${d.signalStrength},${new Date(
           d.timestamp
@@ -315,11 +321,11 @@ export function ZoneExplorerClient() {
   };
 
   const handleAiSummary = async () => {
-    if (!signalData) return;
+    if (!sessionSignalData) return;
     setIsAiLoading(true);
     setAiSummary(null);
     try {
-        const result = await summarizeSession({ signals: signalData });
+        const result = await summarizeSession({ signals: sessionSignalData });
         setAiSummary(result.summary);
     } catch(e) {
         console.error(e);
@@ -355,8 +361,17 @@ export function ZoneExplorerClient() {
   
   const handleRefresh = () => {
     if (!selectedSession) return;
-    const newSignal = generateMockSignalForSession(selectedSession.id);
-    setSignalData(prevData => [...prevData, newSignal]);
+    const lastSignal = signalData[signalData.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
+    const newSignal: NetworkSignal = {
+        id: `sig-${Math.random().toString(36).substr(2, 9)}`,
+        sessionId: selectedSession.id,
+        latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0005,
+        longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0005,
+        signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
+        timestamp: Date.now(),
+    }
+    setSignalData(prev => [...prev, newSignal]);
+
     toast({
         title: "Data Refreshed",
         description: "A new signal data point has been added."
@@ -369,8 +384,10 @@ export function ZoneExplorerClient() {
         return;
     };
     
-    // Update mock data state
-    const updatedSessions = updateMockSessionName(selectedSession.id, newSessionName);
+    // Update sessions in context
+    const updatedSessions = sessions.map(session => 
+        session.id === selectedSession.id ? { ...session, locationName: newSessionName } : session
+    );
     setSessions(updatedSessions);
     
     // Update the selected session in context
@@ -385,9 +402,9 @@ export function ZoneExplorerClient() {
 
 
   const tableData = useMemo(() => {
-    if (!signalData) return [];
-    return signalData.sort((a, b) => b.timestamp - a.timestamp);
-  }, [signalData]);
+    if (!sessionSignalData) return [];
+    return [...sessionSignalData].sort((a, b) => b.timestamp - a.timestamp);
+  }, [sessionSignalData]);
 
 
   return (
@@ -430,7 +447,7 @@ export function ZoneExplorerClient() {
             </Button>
             <Button
                 onClick={handleAiSummary}
-                disabled={!signalData || signalData.length === 0 || isAiLoading || isCollecting}
+                disabled={!sessionSignalData || sessionSignalData.length === 0 || isAiLoading || isCollecting}
                 size="sm"
                 variant="outline"
             >
@@ -439,7 +456,7 @@ export function ZoneExplorerClient() {
             </Button>
           <Button
             onClick={exportToCSV}
-            disabled={!signalData || signalData.length === 0 || isCollecting}
+            disabled={!sessionSignalData || sessionSignalData.length === 0 || isCollecting}
             size="sm"
           >
             <DownloadIcon className="mr-2" />
@@ -455,13 +472,12 @@ export function ZoneExplorerClient() {
             <CardHeader>
               <CardTitle>Welcome to Zone.io</CardTitle>
               <CardDescription>
-                Select a mapping session from the sidebar to visualize signal strength, or start a new one.
+                Select or create a session from the sidebar to visualize signal strength.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p>
-                Your completed sessions will appear in the sidebar. Click on a session to
-                load its data, or click "Start New Session" to begin a 30-second data collection.
+                Click "Start New Session" to begin a 30-second data collection, or "Load Demo Data" to explore sample sessions.
               </p>
             </CardContent>
           </Card>
@@ -469,10 +485,10 @@ export function ZoneExplorerClient() {
 
         {selectedSession && !isCollecting && (
             <>
-            <SessionStats data={signalData} />
+            <SessionStats data={sessionSignalData} />
             { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
             { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/<p>|<\/p>/g, '') }} /></CardContent></Card>}
-            <SignalChart data={signalData} />
+            <SignalChart data={sessionSignalData} />
             <div className="h-64 w-full rounded-lg mb-4">
                 <MapView />
             </div>

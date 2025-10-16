@@ -9,8 +9,7 @@ import {
   SetStateAction,
   useEffect,
 } from 'react';
-import type { Session } from '@/lib/types';
-import { mockSessions as initialMockSessions } from '@/lib/mock-data';
+import type { Session, NetworkSignal } from '@/lib/types';
 
 interface SelectedSessionContextType {
   selectedSession: Session | null;
@@ -19,6 +18,8 @@ interface SelectedSessionContextType {
   setSessions: Dispatch<SetStateAction<Session[]>>;
   isCollecting: boolean;
   setIsCollecting: Dispatch<SetStateAction<boolean>>;
+  signalData: NetworkSignal[];
+  setSignalData: Dispatch<SetStateAction<NetworkSignal[]>>;
 }
 
 const SelectedSessionContext = createContext<
@@ -27,8 +28,9 @@ const SelectedSessionContext = createContext<
 
 export function SelectedSessionProvider({ children }: { children: ReactNode }) {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  const [sessions, setSessions] = useState<Session[]>(initialMockSessions);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
+  const [signalData, setSignalData] = useState<NetworkSignal[]>([]);
   
   // When sessions list changes (e.g. name update), find the selected session
   // in the new list and update it to maintain consistency.
@@ -41,16 +43,21 @@ export function SelectedSessionProvider({ children }: { children: ReactNode }) {
                 setSelectedSession(updatedSelected);
             }
         } else {
-            // The selected session was removed from the list
-            setSelectedSession(null);
+            // The selected session was removed from the list, or it's a new collecting session
+            if (!isCollecting) {
+               setSelectedSession(null);
+            }
         }
+    } else if (!isCollecting && sessions.length > 0) {
+        // If nothing is selected, select the first session by default
+        setSelectedSession(sessions[0]);
     }
-  }, [sessions, selectedSession]);
+  }, [sessions, selectedSession, isCollecting]);
 
 
   return (
     <SelectedSessionContext.Provider
-      value={{ selectedSession, setSelectedSession, sessions, setSessions, isCollecting, setIsCollecting }}
+      value={{ selectedSession, setSelectedSession, sessions, setSessions, isCollecting, setIsCollecting, signalData, setSignalData }}
     >
       {children}
     </SelectedSessionContext.Provider>
