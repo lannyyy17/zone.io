@@ -6,8 +6,7 @@ import {
   useState,
   ReactNode,
   Dispatch,
-  SetStateAction,
-  useEffect,
+  SetStateAction
 } from 'react';
 import type { Session, NetworkSignal } from '@/lib/types';
 
@@ -32,29 +31,6 @@ export function SelectedSessionProvider({ children }: { children: ReactNode }) {
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
   const [signalData, setSignalData] = useState<NetworkSignal[]>([]);
   
-  // When sessions list changes (e.g. name update), find the selected session
-  // in the new list and update it to maintain consistency.
-  useEffect(() => {
-    if(selectedSession) {
-        const updatedSelected = sessions.find(s => s.id === selectedSession.id);
-        if (updatedSelected) {
-            // Avoid re-setting if the object is identical, but allow updates
-            if (JSON.stringify(updatedSelected) !== JSON.stringify(selectedSession)) {
-                setSelectedSession(updatedSelected);
-            }
-        } else {
-            // The selected session was removed from the list, or it's a new collecting session
-            if (!isCollecting) {
-               setSelectedSession(null);
-            }
-        }
-    } else if (!isCollecting && sessions.length > 0) {
-        // If nothing is selected, select the first session by default
-        setSelectedSession(sessions[0]);
-    }
-  }, [sessions, selectedSession, isCollecting]);
-
-
   return (
     <SelectedSessionContext.Provider
       value={{ selectedSession, setSelectedSession, sessions, setSessions, isCollecting, setIsCollecting, signalData, setSignalData }}

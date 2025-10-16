@@ -129,6 +129,9 @@ export function SessionHistory() {
     const { sessions: demoSessions, signals: demoSignals } = generateClientSideMocks();
     setSessions(demoSessions);
     setSignalData(demoSignals);
+    if(demoSessions.length > 0) {
+      setSelectedSession(demoSessions[0]);
+    }
   }
 
   if (sessions.length === 0) {
