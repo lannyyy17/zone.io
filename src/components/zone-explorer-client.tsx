@@ -264,12 +264,6 @@ export function ZoneExplorerClient() {
 
   }, [selectedSession, isCollecting, signalData, setSignalData]);
 
-  const triggerRename = useCallback(() => {
-    if (selectedSession && !selectedSession.locationName?.includes("Live Session")) {
-        setIsEditingName(true);
-    }
-  }, [selectedSession]);
-
   useEffect(() => {
     if(isCollecting) {
         setSessionSignalData([]);

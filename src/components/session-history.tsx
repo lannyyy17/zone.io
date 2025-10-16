@@ -68,20 +68,6 @@ export function SessionHistory() {
     }, {} as Record<string, number>)
   }, [signalData]);
   
-  const generateMockSignalForSession = (sessionId: string) => {
-      const lastSignal = signalData[signalData.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
-      const newSignal: NetworkSignal = {
-          id: `sig-${Math.random().toString(36).substr(2, 9)}`,
-          sessionId,
-          latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0005,
-          longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0005,
-          signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
-          timestamp: Date.now(),
-      }
-      setSignalData(prev => [...prev, newSignal]);
-      return newSignal;
-  }
-
   const handleNewSession = () => {
     if (isCollecting) return;
     
