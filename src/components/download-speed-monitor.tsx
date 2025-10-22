@@ -1,15 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/card';
-import { Gauge, Server, Play, Pause } from 'lucide-react';
-import { Badge } from './ui/badge';
+import { Gauge, Play, Pause } from 'lucide-react';
 import { Button } from './ui/button';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+
+type SpeedMeasurement = {
+  time: string;
+  speed: number;
+};
+
+const MAX_HISTORY_LENGTH = 30; // Keep last 30 data points (5 minutes if 10s interval)
 
 export function DownloadSpeedMonitor() {
-  const [speed, setSpeed] = useState<number | null>(null);
+  const [speedHistory, setSpeedHistory] = useState<SpeedMeasurement[]>([]);
   const [isTesting, setIsTesting] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(true);
+
+  const currentSpeed = speedHistory.length > 0 ? speedHistory[speedHistory.length - 1].speed : null;
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -18,7 +32,6 @@ export function DownloadSpeedMonitor() {
       setIsTesting(true);
       const startTime = Date.now();
       try {
-        // Fetch a 10MB file from our API endpoint
         const response = await fetch(`/api/download-test?_=${startTime}`, { cache: 'no-store' });
         const blob = await response.blob();
         const endTime = Date.now();
@@ -28,10 +41,20 @@ export function DownloadSpeedMonitor() {
         const speedInBps = sizeInBits / durationInSeconds;
         const speedInMbps = speedInBps / 1000 / 1000;
 
-        setSpeed(speedInMbps);
+        setSpeedHistory(prevHistory => {
+            const newMeasurement: SpeedMeasurement = {
+                time: new Date().toLocaleTimeString(),
+                speed: parseFloat(speedInMbps.toFixed(2))
+            };
+            const updatedHistory = [...prevHistory, newMeasurement];
+            if (updatedHistory.length > MAX_HISTORY_LENGTH) {
+                return updatedHistory.slice(updatedHistory.length - MAX_HISTORY_LENGTH);
+            }
+            return updatedHistory;
+        });
+
       } catch (error) {
         console.error('Download speed measurement failed:', error);
-        setSpeed(null);
       } finally {
         setIsTesting(false);
       }
@@ -49,20 +72,20 @@ export function DownloadSpeedMonitor() {
     };
   }, [isMonitoring]);
 
-  const getSpeedColor = () => {
-    if (speed === null) return 'text-muted-foreground';
-    if (speed > 100) return 'text-green-400';
-    if (speed > 25) return 'text-yellow-400';
+  const getSpeedColor = (speedValue: number | null) => {
+    if (speedValue === null) return 'text-muted-foreground';
+    if (speedValue > 100) return 'text-green-400';
+    if (speedValue > 25) return 'text-yellow-400';
     return 'text-red-500';
   };
 
-  const speedScale = [
-    { label: 'Excellent', range: '> 100 Mbps', color: 'bg-green-500' },
-    { label: 'Good', range: '> 25 Mbps', color: 'bg-lime-500' },
-    { label: 'Fair', range: '> 5 Mbps', color: 'bg-yellow-500' },
-    { label: 'Poor', range: '> 1 Mbps', color: 'bg-orange-500' },
-    { label: 'Unusable', range: '< 1 Mbps', color: 'bg-red-500' }
-  ];
+  const chartConfig = {
+    speed: {
+      label: 'Speed (Mbps)',
+      color: 'hsl(var(--primary))',
+    },
+  };
+  
 
   return (
     <Card className="hover:bg-muted/50 transition-all hover:scale-105 flex flex-col">
@@ -73,40 +96,70 @@ export function DownloadSpeedMonitor() {
                 Download Speed
             </CardTitle>
             <CardDescription>
-                Your current throughput from the server.
+                Live throughput from the server.
             </CardDescription>
         </div>
-        <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMonitoring(!isMonitoring)}
-            className="text-muted-foreground hover:text-foreground"
-        >
-            {isMonitoring ? <Pause className="size-5" /> : <Play className="size-5" />}
-            <span className="sr-only">{isMonitoring ? 'Pause' : 'Resume'}</span>
-        </Button>
-      </CardHeader>
-      <CardContent className="flex flex-1 items-center justify-center p-6">
-        {isTesting && speed === null ? (
-            <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-        ) : (
-            <div className={`text-4xl font-bold ${getSpeedColor()}`}>
-                {speed !== null ? `${speed.toFixed(2)} Mbps` : (isMonitoring ? 'N/A' : 'Paused')}
+        <div className="flex items-center gap-2">
+            <div className={`text-lg font-bold ${getSpeedColor(currentSpeed)}`}>
+                {currentSpeed !== null ? `${currentSpeed.toFixed(2)} Mbps` : (isMonitoring ? 'N/A' : 'Paused')}
             </div>
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMonitoring(!isMonitoring)}
+                className="text-muted-foreground hover:text-foreground"
+            >
+                {isMonitoring ? <Pause className="size-5" /> : <Play className="size-5" />}
+                <span className="sr-only">{isMonitoring ? 'Pause' : 'Resume'}</span>
+            </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-1 items-center justify-center p-0">
+        {isTesting && speedHistory.length === 0 ? (
+          <div className="flex h-full min-h-48 w-full items-center justify-center">
+            <p className="text-muted-foreground">Measuring initial speed...</p>
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-48 w-full">
+            <AreaChart 
+                data={speedHistory}
+                margin={{ top: 5, right: 20, left: -10, bottom: 0 }}
+            >
+                <CartesianGrid vertical={false} />
+                <XAxis 
+                    dataKey="time" 
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tickFormatter={(value, index) => index % 5 === 0 ? value : ''} // Show every 5th label
+                />
+                <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    domain={[0, 'dataMax + 20']}
+                />
+                <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" />}
+                />
+                 <defs>
+                    <linearGradient id="fillSpeed" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                    </linearGradient>
+                </defs>
+                <Area
+                    dataKey="speed"
+                    type="natural"
+                    fill="url(#fillSpeed)"
+                    stroke="hsl(var(--primary))"
+                    stackId="a"
+                />
+            </AreaChart>
+          </ChartContainer>
         )}
       </CardContent>
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        <p className="text-xs font-semibold text-muted-foreground">Signal Strength Conversion Scale:</p>
-        <div className="flex flex-wrap gap-2">
-          {speedScale.map(item => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${item.color}`} />
-              <span className="font-medium">{item.label}:</span>
-              <span className="text-muted-foreground">{item.range}</span>
-            </div>
-          ))}
-        </div>
-      </CardFooter>
     </Card>
   );
 }
