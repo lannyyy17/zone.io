@@ -460,9 +460,16 @@ export function ZoneExplorerClient() {
 
         {selectedSession && !isCollecting && !signalsLoading && (
             <>
-            <SessionStats data={sessionSignalData ?? []} />
-            { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
-            { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/<p>|<\/p>/g, '') }} /></CardContent></Card>}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="h-[40vh] lg:h-auto">
+                    <MapView data={sessionSignalData ?? []} />
+                </div>
+                <div className="flex flex-col gap-4">
+                    <SessionStats data={sessionSignalData ?? []} />
+                    { isAiLoading && <Card><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
+                    { aiSummary && <Card><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/<p>|<\/p>/g, '') }} /></CardContent></Card>}
+                </div>
+            </div>
             <SignalChart data={sessionSignalData ?? []} />
               <Card>
                 <CardHeader>
