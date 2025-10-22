@@ -2,14 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/card';
-import { Gauge, Server } from 'lucide-react';
+import { Gauge, Server, Play, Pause } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 
 export function DownloadSpeedMonitor() {
   const [speed, setSpeed] = useState<number | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [isMonitoring, setIsMonitoring] = useState(true);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
     const measureSpeed = async () => {
       setIsTesting(true);
       const startTime = Date.now();
@@ -33,11 +37,17 @@ export function DownloadSpeedMonitor() {
       }
     };
 
-    measureSpeed(); // Initial test
-    const interval = setInterval(measureSpeed, 10000); // Test every 10 seconds
+    if (isMonitoring) {
+        measureSpeed(); // Initial test
+        interval = setInterval(measureSpeed, 10000); // Test every 10 seconds
+    } else {
+        if(interval) clearInterval(interval);
+    }
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+        if(interval) clearInterval(interval);
+    };
+  }, [isMonitoring]);
 
   const getSpeedColor = () => {
     if (speed === null) return 'text-muted-foreground';
@@ -57,7 +67,7 @@ export function DownloadSpeedMonitor() {
   return (
     <Card className="hover:bg-muted/50 transition-all hover:scale-105 flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between">
-        <div>
+        <div className="flex-1">
             <CardTitle className="flex items-center gap-2 font-headline">
                 <Gauge />
                 Download Speed
@@ -66,14 +76,22 @@ export function DownloadSpeedMonitor() {
                 Your current throughput from the server.
             </CardDescription>
         </div>
-        <Server className="size-8 text-primary" />
+        <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMonitoring(!isMonitoring)}
+            className="text-muted-foreground hover:text-foreground"
+        >
+            {isMonitoring ? <Pause className="size-5" /> : <Play className="size-5" />}
+            <span className="sr-only">{isMonitoring ? 'Pause' : 'Resume'}</span>
+        </Button>
       </CardHeader>
       <CardContent className="flex flex-1 items-center justify-center p-6">
         {isTesting && speed === null ? (
             <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
         ) : (
             <div className={`text-4xl font-bold ${getSpeedColor()}`}>
-                {speed !== null ? `${speed.toFixed(2)} Mbps` : 'N/A'}
+                {speed !== null ? `${speed.toFixed(2)} Mbps` : (isMonitoring ? 'N/A' : 'Paused')}
             </div>
         )}
       </CardContent>
