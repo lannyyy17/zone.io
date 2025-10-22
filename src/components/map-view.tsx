@@ -1,7 +1,7 @@
 'use client';
 
 import type { NetworkSignal } from '@/lib/types';
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, memo } from 'react';
 import { MapContainer, TileLayer, Circle, FeatureGroup, useMap } from 'react-leaflet';
 import type { LatLngBounds } from 'leaflet';
 
@@ -27,8 +27,13 @@ interface MapUpdaterProps {
 function MapUpdater({ bounds, center }: MapUpdaterProps) {
   const map = useMap();
   useEffect(() => {
-    if (bounds) {
-      map.fitBounds(bounds);
+    if (bounds && bounds.isValid()) {
+      try {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      } catch(e) {
+        console.error("Failed to fit bounds", e);
+        map.setView(center, 13);
+      }
     } else {
       map.setView(center, 13);
     }
@@ -36,8 +41,7 @@ function MapUpdater({ bounds, center }: MapUpdaterProps) {
   return null;
 }
 
-
-export default function MapView({ data }: { data: NetworkSignal[] }) {
+function MapView({ data }: { data: NetworkSignal[] }) {
   const { points, center, bounds } = useMemo(() => {
     if (!data || data.length === 0) {
       return { 
@@ -101,3 +105,5 @@ export default function MapView({ data }: { data: NetworkSignal[] }) {
     </MapContainer>
   );
 }
+
+export default memo(MapView);
