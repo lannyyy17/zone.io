@@ -13,10 +13,13 @@ import {
 import { SignalIcon } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
 import { SessionHistory } from '@/components/session-history';
+import { useSelectedSession } from '@/hooks/use-selected-session';
+import { Dashboard } from '@/components/dashboard';
 
 
 function AppContent() {
   const { user, isUserLoading } = useFirebase();
+  const { selectedSession } = useSelectedSession();
 
 
   if (isUserLoading) {
@@ -60,7 +63,7 @@ function AppContent() {
             <SidebarTrigger/>
             <h1 className="text-lg font-semibold">Sessions</h1>
         </div>
-        <ZoneExplorerClient />
+        { selectedSession ? <ZoneExplorerClient /> : <Dashboard /> }
       </SidebarInset>
     </>
   );
@@ -73,5 +76,3 @@ export default function Home() {
     </FirebaseClientProvider>
   );
 }
-
-    

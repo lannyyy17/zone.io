@@ -1,20 +1,19 @@
 'use client';
 
 import { SidebarGroup, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from './ui/sidebar';
-import { MapPin, Dot, PlusCircle } from 'lucide-react';
+import { MapPin, Dot } from 'lucide-react';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import type { Session } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Button } from './ui/button';
 import { useFirebase, useFirestore, useCollection } from '@/firebase';
-import { collection, query, orderBy, doc, serverTimestamp, writeBatch, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 
 
 export function SessionHistory() {
   const { user } = useFirebase();
   const firestore = useFirestore();
-  const { selectedSession, setSelectedSession, isCollecting, setIsCollecting } = useSelectedSession();
+  const { selectedSession, setSelectedSession, isCollecting } = useSelectedSession();
 
   const sessionsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -22,58 +21,6 @@ export function SessionHistory() {
   }, [user, firestore]);
 
   const { data: sessions, isLoading: sessionsLoading } = useCollection<Session>(sessionsQuery);
-
-  const handleNewSession = async () => {
-    if (isCollecting || !user || !firestore) return;
-    
-    setIsCollecting(true);
-    
-    const sessionCount = (sessions?.length ?? 0) + 1;
-    const newSessionRef = doc(collection(firestore, 'users', user.uid, 'sessions'));
-    const newSession: Session = {
-        id: newSessionRef.id,
-        userId: user.uid,
-        startTime: Date.now(),
-        endTime: null, // Active session
-        locationName: `New Session ${sessionCount}`,
-    };
-
-    setSelectedSession(newSession);
-
-    // Use a batch to write the session and initial signals
-    const batch = writeBatch(firestore);
-
-    batch.set(newSessionRef, newSession);
-
-    // Simulate collecting a few points instantly around San Francisco
-    const numPoints = Math.floor(Math.random() * 6) + 10;
-    const startPos = { latitude: 37.7749, longitude: -122.4194 }; // San Francisco
-
-    for (let i = 0; i < numPoints; i++) {
-        const signalRef = doc(collection(firestore, 'users', user.uid, 'sessions', newSession.id, 'signals'));
-        const newSignal = {
-            id: signalRef.id,
-            latitude: startPos.latitude + (Math.random() - 0.5) * 0.01,
-            longitude: startPos.longitude + (Math.random() - 0.5) * 0.01,
-            signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
-            timestamp: serverTimestamp(),
-        };
-        batch.set(signalRef, newSignal);
-    }
-    
-    // Commit the batch
-    await batch.commit();
-
-    // Simulate a 30-second collection period
-    setTimeout(async () => {
-        // Mark the session as complete in Firestore
-        const sessionDocRef = doc(firestore, 'users', user.uid, 'sessions', newSession.id);
-        await updateDoc(sessionDocRef, { endTime: Date.now() });
-
-        setIsCollecting(false);
-    }, 30000); // 30 seconds
-  };
-  
 
   if (sessionsLoading) {
     return (
@@ -85,15 +32,9 @@ export function SessionHistory() {
 
   return (
     <SidebarGroup>
-        <div className="p-2 flex flex-col gap-2">
-            <Button onClick={handleNewSession} className="w-full" disabled={isCollecting}>
-                <PlusCircle className="mr-2" />
-                {isCollecting ? 'Collecting...' : 'Start New Session'}
-            </Button>
-        </div>
       {(!sessions || sessions.length === 0) && !isCollecting && (
          <p className="p-2 text-sm text-muted-foreground">
-          No sessions found. Start a new session to begin.
+          No sessions found. Start a new session from the dashboard to begin.
         </p>
       )}
       <SidebarMenu>
