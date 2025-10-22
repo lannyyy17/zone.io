@@ -243,7 +243,7 @@ function LiveCollectionPanel() {
     
         if (!user || !firestore || !selectedSession) return;
     
-        setIsPinDropping(true);
+        setTimeout(() => setIsPinDropping(true), 0);
         if(showToast) toast({ title: 'Measuring Signal...', description: 'Please wait while we test your network speed.' });
         
         navigator.geolocation.getCurrentPosition(
