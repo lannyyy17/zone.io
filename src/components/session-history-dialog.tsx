@@ -19,18 +19,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
-import { History, MapPin, Dot, Trash2 } from 'lucide-react';
+import { History, MapPin, Dot, Trash2, StopCircle } from 'lucide-react';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import type { Session } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useFirebase, useFirestore, useCollection } from '@/firebase';
+import { useFirebase, useFirestore, useCollection, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import { useState } from 'react';
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { toast } from '@/hooks/use-toast';
 
-function SessionItem({ session, onSelect, onDelete }: { session: Session, onSelect: () => void, onDelete: () => void }) {
+function SessionItem({ session, onSelect, onDelete, onStop }: { session: Session, onSelect: () => void, onDelete: () => void, onStop: () => void }) {
     const { selectedSession } = useSelectedSession();
     const isLive = session.endTime === null;
 
@@ -57,10 +57,18 @@ function SessionItem({ session, onSelect, onDelete }: { session: Session, onSele
                     </div>
                 </div>
             </Button>
-            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
-                <Trash2 className="size-4" />
-                <span className="sr-only">Delete session</span>
-            </Button>
+            <div className="flex items-center">
+              {isLive && (
+                 <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={onStop}>
+                    <StopCircle className="size-4" />
+                    <span className="sr-only">Stop session</span>
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
+                  <Trash2 className="size-4" />
+                  <span className="sr-only">Delete session</span>
+              </Button>
+            </div>
         </div>
     )
 }
@@ -68,7 +76,7 @@ function SessionItem({ session, onSelect, onDelete }: { session: Session, onSele
 export function SessionHistoryDialog() {
   const { user } = useFirebase();
   const firestore = useFirestore();
-  const { selectedSession, setSelectedSession, isCollecting } = useSelectedSession();
+  const { selectedSession, setSelectedSession, isCollecting, setIsCollecting, setActiveSession } = useSelectedSession();
   const [isOpen, setIsOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
 
@@ -87,6 +95,22 @@ export function SessionHistoryDialog() {
   const handleDeleteClick = (session: Session) => {
     setSessionToDelete(session);
   };
+
+  const handleStopSession = (session: Session) => {
+    if (!user || !firestore) return;
+    
+    updateDocumentNonBlocking(
+      doc(firestore, 'users', user.uid, 'sessions', session.id),
+      { endTime: Date.now() }
+    );
+    
+    // If the stopped session is the currently active one, update global state
+    if (selectedSession?.id === session.id) {
+        setIsCollecting(false);
+        setActiveSession(null);
+    }
+    toast({ title: 'Session Ended', description: `${session.locationName ?? 'The session'} has been stopped.` });
+  }
   
   const confirmDelete = () => {
     if (!sessionToDelete || !user || !firestore) return;
@@ -134,6 +158,7 @@ export function SessionHistoryDialog() {
                         session={session} 
                         onSelect={() => handleSessionSelect(session)}
                         onDelete={() => handleDeleteClick(session)}
+                        onStop={() => handleStopSession(session)}
                     />
                 ))}
             </div>
