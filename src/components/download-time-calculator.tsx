@@ -24,36 +24,72 @@ export function DownloadTimeCalculator() {
       return;
     }
 
-    let sizeInMegabits;
-    if (fileSizeUnit === 'MB') {
-      sizeInMegabits = size * 8;
-    } else { // GB
-      sizeInMegabits = size * 1024 * 8;
+    let sizeInBits;
+    switch (fileSizeUnit) {
+        case 'MB':
+            sizeInBits = size * 1024 * 1024 * 8;
+            break;
+        case 'GB':
+            sizeInBits = size * 1024 * 1024 * 1024 * 8;
+            break;
+        case 'TB':
+            sizeInBits = size * 1024 * 1024 * 1024 * 1024 * 8;
+            break;
+        default:
+            sizeInBits = 0;
     }
 
-    let speedInMbps;
-    if (speedUnit === 'Mbps') {
-      speedInMbps = downloadSpeed;
-    } else { // Gbps
-      speedInMbps = downloadSpeed * 1024;
+    let speedInBps;
+    switch(speedUnit) {
+        case 'bps':
+            speedInBps = downloadSpeed;
+            break;
+        case 'kbps':
+            speedInBps = downloadSpeed * 1000;
+            break;
+        case 'Mbps':
+            speedInBps = downloadSpeed * 1000 * 1000;
+            break;
+        case 'Gbps':
+            speedInBps = downloadSpeed * 1000 * 1000 * 1000;
+            break;
+        case 'MBps':
+            speedInBps = downloadSpeed * 1024 * 1024 * 8;
+            break;
+        case 'GBps':
+            speedInBps = downloadSpeed * 1024 * 1024 * 1024 * 8;
+            break;
+        default:
+            speedInBps = 0;
     }
 
-    const timeInSeconds = sizeInMegabits / speedInMbps;
+    if (speedInBps === 0) {
+        setResult('Invalid speed unit selected.');
+        return;
+    }
+
+    const timeInSeconds = sizeInBits / speedInBps;
 
     formatTime(timeInSeconds);
   };
 
   const formatTime = (seconds: number) => {
-    if (seconds < 60) {
-      setResult(`${Math.round(seconds)} seconds`);
+    if (seconds < 1) {
+        setResult(`${(seconds * 1000).toPrecision(3)} milliseconds`);
+    } else if (seconds < 60) {
+      setResult(`${seconds.toPrecision(3)} seconds`);
     } else if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
       const remainingSeconds = Math.round(seconds % 60);
       setResult(`${minutes} min ${remainingSeconds} sec`);
-    } else {
+    } else if (seconds < 86400) {
       const hours = Math.floor(seconds / 3600);
       const remainingMinutes = Math.floor((seconds % 3600) / 60);
       setResult(`${hours} hr ${remainingMinutes} min`);
+    } else {
+        const days = Math.floor(seconds / 86400);
+        const remainingHours = Math.floor((seconds % 86400) / 3600);
+        setResult(`${days} day(s) ${remainingHours} hr`);
     }
   };
 
@@ -87,6 +123,7 @@ export function DownloadTimeCalculator() {
                 <SelectContent>
                   <SelectItem value="MB">MB</SelectItem>
                   <SelectItem value="GB">GB</SelectItem>
+                  <SelectItem value="TB">TB</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -102,12 +139,16 @@ export function DownloadTimeCalculator() {
                 placeholder="e.g., 50"
               />
               <Select value={speedUnit} onValueChange={setSpeedUnit}>
-                <SelectTrigger className="w-[90px]">
+                <SelectTrigger className="w-[100px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="bps">bps</SelectItem>
+                  <SelectItem value="kbps">kbps</SelectItem>
                   <SelectItem value="Mbps">Mbps</SelectItem>
                   <SelectItem value="Gbps">Gbps</SelectItem>
+                  <SelectItem value="MBps">MBps</SelectItem>
+                  <SelectItem value="GBps">GBps</SelectItem>
                 </SelectContent>
               </Select>
             </div>
