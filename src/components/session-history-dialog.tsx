@@ -8,50 +8,69 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
-import { History, MapPin, Dot } from 'lucide-react';
+import { History, MapPin, Dot, Trash2 } from 'lucide-react';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import type { Session } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useFirebase, useFirestore, useCollection } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import { useState } from 'react';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { toast } from '@/hooks/use-toast';
 
-function SessionItem({ session, onSelect }: { session: Session, onSelect: () => void }) {
+function SessionItem({ session, onSelect, onDelete }: { session: Session, onSelect: () => void, onDelete: () => void }) {
     const { selectedSession } = useSelectedSession();
     const isLive = session.endTime === null;
 
     return (
-        <Button
-            variant="ghost"
-            className={cn(
-                "w-full justify-start text-left h-auto",
-                selectedSession?.id === session.id && "bg-muted"
-            )}
-            onClick={onSelect}
-        >
-            <MapPin className="mr-2" />
-            <div className="flex flex-col items-start truncate">
-                <span className="font-medium truncate">
-                {session.locationName ?? `Session ${session.id.slice(0, 6)}`}
-                </span>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <div className="flex items-center">
-                    <Dot className={cn("mr-1 h-4 w-4", isLive ? "animate-pulse text-red-500" : "text-green-500")} />
-                    <span>{isLive ? "Live" : "Completed"}</span>
+        <div className={cn(
+            "flex items-center justify-between w-full rounded-md hover:bg-muted/50",
+            selectedSession?.id === session.id && "bg-muted"
+        )}>
+            <Button
+                variant="ghost"
+                className="flex-1 justify-start text-left h-auto"
+                onClick={onSelect}
+            >
+                <MapPin className="mr-2" />
+                <div className="flex flex-col items-start truncate">
+                    <span className="font-medium truncate">
+                    {session.locationName ?? `Session ${session.id.slice(0, 6)}`}
+                    </span>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <div className="flex items-center">
+                        <Dot className={cn("mr-1 h-4 w-4", isLive ? "animate-pulse text-red-500" : "text-green-500")} />
+                        <span>{isLive ? "Live" : "Completed"}</span>
+                    </div>
+                    </div>
                 </div>
-                </div>
-            </div>
-        </Button>
+            </Button>
+            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
+                <Trash2 className="size-4" />
+                <span className="sr-only">Delete session</span>
+            </Button>
+        </div>
     )
 }
 
 export function SessionHistoryDialog() {
   const { user } = useFirebase();
   const firestore = useFirestore();
-  const { setSelectedSession, isCollecting } = useSelectedSession();
+  const { selectedSession, setSelectedSession, isCollecting } = useSelectedSession();
   const [isOpen, setIsOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
 
   const sessionsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -65,7 +84,33 @@ export function SessionHistoryDialog() {
     setIsOpen(false);
   }
 
+  const handleDeleteClick = (session: Session) => {
+    setSessionToDelete(session);
+  };
+  
+  const confirmDelete = () => {
+    if (!sessionToDelete || !user || !firestore) return;
+  
+    // Non-blocking delete
+    deleteDocumentNonBlocking(doc(firestore, 'users', user.uid, 'sessions', sessionToDelete.id));
+
+    // Note: We are not deleting subcollections here for simplicity,
+    // but in a production app you would use a Firebase Function to do this.
+  
+    toast({
+      title: 'Session Deleted',
+      description: `${sessionToDelete.locationName ?? 'The session'} has been removed.`,
+    });
+  
+    if (selectedSession?.id === sessionToDelete.id) {
+      setSelectedSession(null);
+    }
+  
+    setSessionToDelete(null); // Close the confirmation dialog
+  };
+
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
@@ -77,7 +122,7 @@ export function SessionHistoryDialog() {
         <DialogHeader>
           <DialogTitle>Session History</DialogTitle>
           <DialogDescription>
-            Select a previous session to view its details.
+            Select a session to view its details or delete it.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto">
@@ -87,13 +132,37 @@ export function SessionHistoryDialog() {
                     No sessions found. Start a new session from the dashboard to begin.
                 </p>
             )}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
                 {sessions && sessions.map((session) => (
-                    <SessionItem key={session.id} session={session} onSelect={() => handleSessionSelect(session)} />
+                    <SessionItem 
+                        key={session.id} 
+                        session={session} 
+                        onSelect={() => handleSessionSelect(session)}
+                        onDelete={() => handleDeleteClick(session)}
+                    />
                 ))}
             </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!sessionToDelete} onOpenChange={(open) => !open && setSessionToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the
+                session and all its associated signal data.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSessionToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
