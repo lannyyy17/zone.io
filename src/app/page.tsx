@@ -1,12 +1,13 @@
 'use client';
 
 import { FirebaseClientProvider, useFirebase } from '@/firebase';
-import { ZoneExplorerClient } from '@/components/zone-explorer-client';
+import { SessionExplorerClient } from '@/components/session-explorer-client';
 import { AuthScreen } from '@/components/auth-screen';
 import { SignalIcon } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import { Dashboard } from '@/components/dashboard';
+import { SessionHistoryDialog } from '@/components/session-history-dialog';
 
 
 function AppContent() {
@@ -41,10 +42,13 @@ function AppContent() {
               Zone.io
             </h1>
           </div>
-          <UserNav />
+          <div className="flex items-center gap-2">
+            <SessionHistoryDialog />
+            <UserNav />
+          </div>
       </header>
       <div className="flex-1 overflow-auto">
-        { selectedSession ? <ZoneExplorerClient /> : <Dashboard /> }
+        { selectedSession ? <SessionExplorerClient /> : <Dashboard /> }
       </div>
     </div>
   );
