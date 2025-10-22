@@ -214,11 +214,11 @@ const measureDownloadSpeedAndConvertToDb = async (): Promise<number> => {
         const speedInBps = sizeInBits / durationInSeconds;
         const speedInMbps = speedInBps / 1000 / 1000;
 
-        if (speedInMbps > 100) return -50;
-        if (speedInMbps > 50) return -65;
-        if (speedInMbps > 10) return -80;
-        if (speedInMbps > 1) return -95;
-        return -110;
+        if (speedInMbps > 100) return -50; // Excellent
+        if (speedInMbps > 25) return -65; // Good
+        if (speedInMbps > 5) return -80;  // Fair
+        if (speedInMbps > 1) return -95;  // Poor
+        return -110; // Unusable
 
     } catch (error) {
         console.error('Download speed measurement failed:', error);
