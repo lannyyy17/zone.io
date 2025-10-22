@@ -481,7 +481,7 @@ export function ZoneExplorerClient() {
             )}
         </div>
         <div className="flex items-center gap-2">
-            <SessionHistoryDialog />
+          <SessionHistoryDialog />
             <Button
                 onClick={handleAiSummary}
                 disabled={!sessionSignalData || sessionSignalData.length === 0 || isAiLoading}

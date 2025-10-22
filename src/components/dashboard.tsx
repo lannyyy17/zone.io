@@ -9,6 +9,7 @@ import type { Session } from '@/lib/types';
 import { DownloadTimeCalculator } from './download-time-calculator';
 import { DownloadSpeedMonitor } from './download-speed-monitor';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { SessionHistoryDialog } from './session-history-dialog';
 
 export function Dashboard() {
   const { user } = useFirebase();
@@ -80,6 +81,7 @@ export function Dashboard() {
         <h2 className="text-lg font-bold tracking-tight sm:text-xl md:text-2xl font-headline text-gradient-primary">
           Dashboard
         </h2>
+        <SessionHistoryDialog />
       </header>      <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="lg:col-span-2">

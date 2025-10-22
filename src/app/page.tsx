@@ -43,7 +43,7 @@ function AppContent() {
           </div>
           <UserNav />
       </header>
-      <div className="flex-1">
+      <div className="flex-1 overflow-auto">
         { selectedSession ? <ZoneExplorerClient /> : <Dashboard /> }
       </div>
     </div>
