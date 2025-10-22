@@ -464,9 +464,6 @@ export function ZoneExplorerClient() {
             { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
             { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/<p>|<\/p>/g, '') }} /></CardContent></Card>}
             <SignalChart data={sessionSignalData ?? []} />
-            <div className="h-64 w-full rounded-lg mb-4">
-                <MapView data={sessionSignalData ?? []} />
-            </div>
               <Card>
                 <CardHeader>
                   <CardTitle>Raw Signal Data</CardTitle>
