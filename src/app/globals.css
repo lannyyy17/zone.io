@@ -86,3 +86,17 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .bg-gradient-primary {
+    @apply bg-gradient-to-br from-primary to-accent;
+  }
+
+  .bg-gradient-secondary {
+    @apply bg-gradient-to-br from-secondary to-muted;
+  }
+
+  .text-gradient-primary {
+    @apply bg-gradient-primary bg-clip-text text-transparent;
+  }
+}

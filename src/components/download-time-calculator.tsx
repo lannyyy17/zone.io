@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Clock } from 'lucide-react';
+import { Clock, DownloadCloud } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -104,17 +104,20 @@ export function DownloadTimeCalculator() {
   return (
     <Dialog>
         <DialogTrigger asChild>
-            <Card className="cursor-pointer hover:bg-muted">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Clock />
-                        Download Time Calculator
-                    </CardTitle>
-                    <CardDescription>
-                        Estimate how long a download will take.
-                    </CardDescription>
-                </CardHeader>
-            </Card>
+          <Card className="cursor-pointer hover:bg-muted/50 transition-all hover:scale-105">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                      <CardTitle className="flex items-center gap-2 font-headline">
+                          <Clock />
+                          Download Time
+                      </CardTitle>
+                      <CardDescription>
+                          Estimate download duration.
+                      </CardDescription>
+                  </div>
+                  <DownloadCloud className="size-8 text-primary" />
+              </CardHeader>
+          </Card>
         </DialogTrigger>
         <DialogContent>
             <DialogHeader>
@@ -178,7 +181,7 @@ export function DownloadTimeCalculator() {
             {result && (
               <div className="mt-4 rounded-md bg-muted p-4 text-center">
                 <p className="text-sm font-medium text-muted-foreground">Estimated Time:</p>
-                <p className="text-lg font-semibold text-primary">{result}</p>
+                <p className="text-lg font-semibold text-gradient-primary">{result}</p>
               </div>
             )}
         </DialogContent>

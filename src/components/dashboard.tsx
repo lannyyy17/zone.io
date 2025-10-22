@@ -46,14 +46,14 @@ export function Dashboard() {
   const StartStopButton = () => {
     if (isCollecting) {
         return (
-            <Button onClick={handleStopSession} className="w-full h-24 text-xl" variant="destructive">
+            <Button onClick={handleStopSession} size="lg" className="w-full h-24 text-xl" variant="destructive">
                 <StopCircle className="mr-2 size-8" />
                 Stop Session
             </Button>
         )
     }
     return (
-        <Button onClick={handleNewSession} className="w-full h-24 text-xl">
+        <Button onClick={handleNewSession} size="lg" className="w-full h-24 text-xl">
             <PlusCircle className="mr-2 size-8" />
             Start New Session
         </Button>
@@ -62,8 +62,8 @@ export function Dashboard() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-6">
-        <h2 className="text-lg font-bold tracking-tight sm:text-xl md:text-2xl">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b bg-transparent px-4 md:px-6">
+        <h2 className="text-lg font-bold tracking-tight sm:text-xl md:text-2xl font-headline text-gradient-primary">
           Dashboard
         </h2>
       </header>

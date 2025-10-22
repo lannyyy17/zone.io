@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
-import { Wifi } from 'lucide-react';
+import { Wifi, Zap } from 'lucide-react';
 
 export function PingMonitor() {
   const [ping, setPing] = useState<number | null>(null);
@@ -33,21 +33,24 @@ export function PingMonitor() {
 
   const getPingColor = () => {
     if (ping === null) return 'text-muted-foreground';
-    if (ping < 50) return 'text-green-500';
-    if (ping < 150) return 'text-yellow-500';
+    if (ping < 50) return 'text-green-400';
+    if (ping < 150) return 'text-yellow-400';
     return 'text-red-500';
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Wifi />
-            Real-time Ping
-        </CardTitle>
-        <CardDescription>
-            Your current latency to the server.
-        </CardDescription>
+    <Card className="hover:bg-muted/50 transition-all hover:scale-105">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+            <CardTitle className="flex items-center gap-2 font-headline">
+                <Zap />
+                Real-time Ping
+            </CardTitle>
+            <CardDescription>
+                Your current latency to the server.
+            </CardDescription>
+        </div>
+        <Wifi className="size-8 text-primary" />
       </CardHeader>
       <CardContent className="flex items-center justify-center p-6">
         {isPinging && ping === null ? (
