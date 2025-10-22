@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw } from 'lucide-react';
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { NetworkSignal } from '@/lib/types';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import {
@@ -40,6 +40,9 @@ import { getAddressFromCoordinates } from '@/services/geocoding';
 import MapView from './map-view';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
+import { useCollection, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, doc } from 'firebase/firestore';
+import { useFirebase, useFirestore, useMemoFirebase } from '@/firebase/provider';
 
 
 function getSignalQuality(signal: number): {
@@ -214,8 +217,17 @@ function CollectionInProgressView({ progress }: { progress: number }) {
 
 
 export function ZoneExplorerClient() {
-  const { selectedSession, setSelectedSession, sessions, setSessions, isCollecting, signalData, setSignalData } = useSelectedSession();
-  const [sessionSignalData, setSessionSignalData] = useState<NetworkSignal[]>([]);
+  const { selectedSession, isCollecting } = useSelectedSession();
+  const { user } = useFirebase();
+  const firestore = useFirestore();
+
+  const signalsQuery = useMemoFirebase(() => {
+    if (!firestore || !user || !selectedSession) return null;
+    return query(collection(firestore, 'users', user.uid, 'sessions', selectedSession.id, 'signals'));
+  }, [firestore, user, selectedSession?.id]);
+
+  const { data: sessionSignalData, isLoading: signalsLoading } = useCollection<NetworkSignal>(signalsQuery);
+  
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -225,7 +237,6 @@ export function ZoneExplorerClient() {
 
   useEffect(() => {
     if (!selectedSession) {
-      setSessionSignalData([]);
       setIsEditingName(false);
       setAiSummary(null);
       return;
@@ -233,40 +244,9 @@ export function ZoneExplorerClient() {
 
     setNewSessionName(selectedSession.locationName ?? `Session ${selectedSession.id.slice(0, 6)}`);
 
-    const currentData = signalData.filter(
-      (signal) => signal.sessionId === selectedSession.id
-    );
-    setSessionSignalData(currentData);
-
     const isLive = selectedSession.endTime === null;
-    let interval: NodeJS.Timeout | undefined;
 
-    if (isLive && !isCollecting) { // Only run interval for non-collecting live sessions
-        interval = setInterval(() => {
-            const lastSignal = signalData[signalData.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
-            const newSignal: NetworkSignal = {
-                id: `sig-${Math.random().toString(36).substr(2, 9)}`,
-                sessionId: selectedSession.id,
-                latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0005,
-                longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0005,
-                signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
-                timestamp: Date.now(),
-            }
-            setSignalData(prev => [...prev, newSignal]);
-        }, 5000);
-    }
-
-    return () => {
-        if (interval) {
-            clearInterval(interval)
-        }
-    }
-
-  }, [selectedSession, isCollecting, signalData, setSignalData]);
-
-  useEffect(() => {
-    if(isCollecting) {
-        setSessionSignalData([]);
+    if (isLive && isCollecting) {
         setAiSummary(null);
         let progress = 0;
         const interval = setInterval(() => {
@@ -283,15 +263,14 @@ export function ZoneExplorerClient() {
         // This effect will run after collection is finished
         // or when a new session is selected.
         if (selectedSession && selectedSession.endTime !== null) {
-            const collectedData = signalData.filter(s => s.sessionId === selectedSession.id);
-            setSessionSignalData(collectedData);
             // If the session was just created, prompt for a name.
             if (Date.now() - selectedSession.startTime < 32000) { // a bit more than 30s
                 setIsEditingName(true);
             }
         }
     }
-  }, [isCollecting, selectedSession, signalData])
+
+  }, [selectedSession, isCollecting]);
 
 
   const exportToCSV = () => {
@@ -354,50 +333,40 @@ export function ZoneExplorerClient() {
   }
   
   const handleRefresh = () => {
-    if (!selectedSession) return;
-    const lastSignal = signalData[signalData.length -1] ?? { latitude: 34.0220, longitude: -118.2855 };
-    const newSignal: NetworkSignal = {
-        id: `sig-${Math.random().toString(36).substr(2, 9)}`,
-        sessionId: selectedSession.id,
-        latitude: lastSignal.latitude + (Math.random() - 0.5) * 0.0005,
-        longitude: lastSignal.longitude + (Math.random() - 0.5) * 0.0005,
-        signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
-        timestamp: Date.now(),
-    }
-    setSignalData(prev => [...prev, newSignal]);
-
+    // This function is now less relevant with real-time data,
+    // but could be repurposed for a manual re-fetch if needed.
     toast({
-        title: "Data Refreshed",
-        description: "A new signal data point has been added."
+        title: "Real-time Enabled",
+        description: "Signal data is updated in real-time."
     })
   }
 
   const handleSaveName = () => {
-    if (!selectedSession || !newSessionName.trim()) {
+    if (!selectedSession || !newSessionName.trim() || !user || !firestore) {
         toast({ variant: 'destructive', title: 'Invalid Name', description: 'Session name cannot be empty.'});
         return;
     };
     
-    // Update sessions in context
-    const updatedSessions = sessions.map(session => 
-        session.id === selectedSession.id ? { ...session, locationName: newSessionName } : session
+    // Non-blocking update
+    updateDocumentNonBlocking(
+      doc(firestore, 'users', user.uid, 'sessions', selectedSession.id),
+      { locationName: newSessionName }
     );
-    setSessions(updatedSessions);
     
-    // Update the selected session in context
-    const updatedSelectedSession = updatedSessions.find(s => s.id === selectedSession.id);
-    if (updatedSelectedSession) {
-        setSelectedSession(updatedSelectedSession);
-    }
-
     setIsEditingName(false);
     toast({ title: 'Session Renamed', description: `Session name updated to "${newSessionName}".`});
   }
 
-
   const tableData = useMemo(() => {
     if (!sessionSignalData) return [];
-    return [...sessionSignalData].sort((a, b) => b.timestamp - a.timestamp);
+    // Firestore timestamps are objects, we need to convert them to numbers for sorting
+    // This assumes the timestamp property is a Firestore Timestamp object
+    const sortedData = [...sessionSignalData].sort((a, b) => {
+        const timeA = a.timestamp?.seconds ? (a.timestamp.seconds * 1000 + a.timestamp.nanoseconds / 1000000) : 0;
+        const timeB = b.timestamp?.seconds ? (b.timestamp.seconds * 1000 + b.timestamp.nanoseconds / 1000000) : 0;
+        return timeB - timeA;
+    });
+    return sortedData;
   }, [sessionSignalData]);
 
 
@@ -471,18 +440,26 @@ export function ZoneExplorerClient() {
             </CardHeader>
             <CardContent>
               <p>
-                Click "Start New Session" to begin a 30-second data collection, or "Load Demo Data" to explore sample sessions.
+                Click "Start New Session" to begin a 30-second data collection.
               </p>
             </CardContent>
           </Card>
         )}
+        
+        {signalsLoading && !isCollecting && (
+            <Card>
+                <CardContent className="p-6">
+                    <p className="text-center text-muted-foreground">Loading signal data...</p>
+                </CardContent>
+            </Card>
+        )}
 
-        {selectedSession && !isCollecting && (
+        {selectedSession && !isCollecting && !signalsLoading && (
             <>
-            <SessionStats data={sessionSignalData} />
+            <SessionStats data={sessionSignalData ?? []} />
             { isAiLoading && <Card className="mb-4"><CardContent className="p-6"><p className="text-center text-muted-foreground">Generating AI summary...</p></CardContent></Card> }
             { aiSummary && <Card className="mb-4"><CardHeader><CardTitle>AI Summary</CardTitle></CardHeader><CardContent><div className="prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: aiSummary.replace(/<p>|<\/p>/g, '') }} /></CardContent></Card>}
-            <SignalChart data={sessionSignalData} />
+            <SignalChart data={sessionSignalData ?? []} />
             <div className="h-64 w-full rounded-lg mb-4">
                 <MapView />
             </div>
@@ -509,10 +486,11 @@ export function ZoneExplorerClient() {
                         <TableBody>
                           {tableData.map((d) => {
                             const quality = getSignalQuality(d.signalStrength);
+                            const timestamp = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000) : new Date();
                             return (
                                 <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleRowClick(d)}>
                                 <TableCell>
-                                    {new Date(d.timestamp).toLocaleString()}
+                                    {timestamp.toLocaleString()}
                                 </TableCell>
 
                                 <TableCell>{d.signalStrength}</TableCell>
@@ -538,3 +516,5 @@ export function ZoneExplorerClient() {
     </div>
   );
 }
+
+    

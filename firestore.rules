@@ -1,17 +1,19 @@
 /**
- * @fileoverview Firestore Security Rules for the Network Signal Data App.
+ * @file Firebase Security Rules for Firestore.
  *
- * Core Philosophy:
- * This ruleset allows public read access to all network signal data, while restricting write access.
+ * @core_philosophy:
+ * This ruleset provides open read access to network signal data while restricting write access.
  *
- * Data Structure:
- * All network signal data is stored in the top-level `/network_signals/{networkSignalId}` collection.
- * Each document represents a single network signal data point.
+ * @data_structure:
+ * All network signal data is stored in a top-level collection called `network_signals`.
+ * Documents within this collection represent individual network signal data points.
  *
- * Key Security Decisions:
- * - Public read access is granted to allow for map visualization.
- * - Write access is denied to prevent unauthorized data modification.
- * - No user-specific or role-based access controls are implemented, aligning with the crowdsourced nature of the data.
+ * @key_security_decisions:
+ * - Public Read: Read access (get, list) is granted to everyone, including unauthenticated users.
+ * - Restricted Writes: Create, update, and delete operations are denied to all users.
+ * - This configuration is suitable for a crowdsourced data collection scenario where the primary
+ *   goal is to visualize data, and write access is managed through other secure mechanisms
+ *   (e.g., a backend service or Firebase Functions with appropriate authentication and authorization).
  */
 rules_version = '2';
 service cloud.firestore {
@@ -20,9 +22,9 @@ service cloud.firestore {
     /**
      * @description Grants public read access to network signal data and restricts write access.
      * @path /network_signals/{networkSignalId}
-     * @allow (get, list) Any user can read network signal data.
-     * @deny (create, update, delete) No user can write to network signal data.
-     * @principle Allows public read access while restricting write access.
+     * @allow (get, list) Anyone can read network signal data.
+     * @deny (create, update, delete) No one can create, update, or delete network signal data directly via the client.
+     * @principle Allows public read access for data visualization while restricting unauthorized modifications.
      */
     match /network_signals/{networkSignalId} {
       allow get: if true;

@@ -1,6 +1,6 @@
 'use client';
 
-import { FirebaseClientProvider, useUser, useFirebase } from '@/firebase';
+import { FirebaseClientProvider, useFirebase } from '@/firebase';
 import { ZoneExplorerClient } from '@/components/zone-explorer-client';
 import { AuthScreen } from '@/components/auth-screen';
 import {
@@ -13,12 +13,10 @@ import {
 import { SignalIcon } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
 import { SessionHistory } from '@/components/session-history';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 
 function AppContent() {
   const { user, isUserLoading } = useFirebase();
-  const isMobile = useIsMobile();
 
 
   if (isUserLoading) {
@@ -34,12 +32,7 @@ function AppContent() {
     );
   }
 
-  // For this mock data version, we will simulate a logged-in user.
-  // In a real app, you would use: if (!user) { return <AuthScreen />; }
-  const mockUser = user ?? { uid: 'user-1', email: 'test@example.com', displayName: 'Demo User'};
-
-
-  if (!mockUser) {
+  if (!user) {
     return <AuthScreen />;
   }
 
@@ -80,3 +73,5 @@ export default function Home() {
     </FirebaseClientProvider>
   );
 }
+
+    

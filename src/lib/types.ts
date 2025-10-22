@@ -1,12 +1,18 @@
 import { z } from 'zod';
 
+// Zod schema for Firestore Timestamp
+export const TimestampSchema = z.object({
+    seconds: z.number(),
+    nanoseconds: z.number(),
+});
+
 export const NetworkSignalSchema = z.object({
     id: z.string(),
     latitude: z.number(),
     longitude: z.number(),
     signalStrength: z.number(),
-    sessionId: z.string(),
-    timestamp: z.number(),
+    // Allow both the server-side Timestamp object and the client-side number
+    timestamp: z.union([TimestampSchema, z.number(), z.any()]),
 });
 export type NetworkSignal = z.infer<typeof NetworkSignalSchema>;
 

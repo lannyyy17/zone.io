@@ -1,7 +1,62 @@
 {
   "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "Represents a single data collection session.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the session."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who started the session."
+        },
+        "startTime": {
+          "type": "number",
+          "description": "Timestamp when the session started."
+        },
+        "endTime": {
+          "type": "number",
+          "description": "Timestamp when the session ended."
+        },
+        "locationName": {
+          "type": "string",
+          "description": "A user-defined name for the session location."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "startTime"
+      ]
+    },
     "NetworkSignal": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "NetworkSignal",
       "type": "object",
       "description": "Represents a network signal data point with its location and strength.",
@@ -23,9 +78,8 @@
           "description": "The signal strength at the given latitude and longitude, ranging from 0 to 100."
         },
         "timestamp": {
-          "type": "string",
-          "description": "The timestamp of the network signal measurement.",
-          "format": "date-time"
+          "type": "object",
+          "description": "The server timestamp of the network signal measurement."
         }
       },
       "required": [
@@ -39,29 +93,27 @@
   },
   "auth": {
     "providers": [
-      "password",
       "anonymous"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/network_signals/{networkSignalId}",
-        "definition": {
-          "entityName": "NetworkSignal",
-          "schema": {
-            "$ref": "#/backend/entities/NetworkSignal"
-          },
-          "description": "Collection to store network signal data, including location, strength, and timestamp.",
-          "params": [
-            {
-              "name": "networkSignalId",
-              "description": "Unique identifier for the NetworkSignal document."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The data structure is designed to store network signal data collected from a mobile app for visualization on an interactive map. The core entity is `NetworkSignal`, which includes latitude, longitude, signal strength, and a timestamp.  Since the app's primary function is to display this data without complex user-specific access controls, all data is stored in a single collection named `network_signals`. This simplifies data retrieval for the map visualization. This approach ensures Authorization Independence is not a concern, as there are no user-specific or role-based access restrictions required for this data. QAPs are straightforward because all documents in `network_signals` are accessible for reading and visualization. The structure prioritizes ease of access and visualization over granular access control, which aligns with the crowdsourced nature of the data collection."
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores user profile information."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/Session"
+      },
+      "description": "Stores session data for each user."
+    },
+    "/users/{userId}/sessions/{sessionId}/signals/{signalId}": {
+      "schema": {
+        "$ref": "#/entities/NetworkSignal"
+      },
+      "description": "Stores network signal data for each session."
+    }
   }
 }
