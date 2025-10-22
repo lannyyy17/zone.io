@@ -291,10 +291,8 @@ function LiveCollectionPanel() {
         if (collectionMode === 'pinpoint' && isScanning) {
             // Defer state update to prevent updates during render
             setTimeout(() => {
+                if(scanIntervalRef.current) clearInterval(scanIntervalRef.current);
                 setIsScanning(false);
-                if (scanIntervalRef.current) {
-                    clearInterval(scanIntervalRef.current);
-                }
             }, 0);
         }
     }, [collectionMode, isScanning, setIsScanning]);
