@@ -217,6 +217,31 @@ function CollectionInProgressView() {
   );
 }
 
+const measureDownloadSpeedAndConvertToDb = async (): Promise<number> => {
+    const startTime = Date.now();
+    try {
+        const response = await fetch(`/api/download-test?_=${startTime}`, { cache: 'no-store' });
+        const blob = await response.blob();
+        const endTime = Date.now();
+        
+        const durationInSeconds = (endTime - startTime) / 1000;
+        const sizeInBits = blob.size * 8;
+        const speedInBps = sizeInBits / durationInSeconds;
+        const speedInMbps = speedInBps / 1000 / 1000;
+
+        // Convert Mbps to a dBm value on a logarithmic-like scale
+        if (speedInMbps > 100) return -50; // Excellent
+        if (speedInMbps > 50) return -65; // Good
+        if (speedInMbps > 10) return -80; // Fair
+        if (speedInMbps > 1) return -95; // Poor
+        return -110; // Unusable
+
+    } catch (error) {
+        console.error('Download speed measurement failed:', error);
+        return -110; // Return worst possible signal on error
+    }
+}
+
 
 export function ZoneExplorerClient() {
   const { selectedSession, setSelectedSession, isCollecting } = useSelectedSession();
@@ -317,23 +342,26 @@ export function ZoneExplorerClient() {
     if (!user || !firestore || !selectedSession) return;
 
     setIsPinDropping(true);
+    toast({ title: 'Measuring Signal...', description: 'Please wait while we test your network speed.' });
+    
     navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
             const { latitude, longitude } = position.coords;
+            
+            const signalStrength = await measureDownloadSpeedAndConvertToDb();
             
             const signalsCollection = collection(firestore, 'users', user.uid, 'sessions', selectedSession.id, 'signals');
             
             const newSignal = {
                 latitude: latitude,
                 longitude: longitude,
-                signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110), // Placeholder
+                signalStrength: signalStrength,
                 timestamp: new Date(),
             };
 
-            // Non-blocking write
             addDocumentNonBlocking(signalsCollection, newSignal);
 
-            toast({ title: 'Pin Dropped!', description: `Signal recorded at ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`});
+            toast({ title: 'Pin Dropped!', description: `Signal recorded at ${latitude.toFixed(4)}, ${longitude.toFixed(4)} with ${signalStrength} dBm`});
             setIsPinDropping(false);
         },
         (error) => {
