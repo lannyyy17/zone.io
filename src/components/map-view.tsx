@@ -2,14 +2,9 @@
 
 import type { NetworkSignal } from '@/lib/types';
 import { useMemo } from 'react';
+import { MapContainer, TileLayer, Circle, FeatureGroup } from 'react-leaflet';
+import type { LatLngBounds } from 'leaflet';
 
-// Helper to normalize coordinates to a 0-100 scale
-const normalize = (value: number, min: number, max: number) => {
-  if (max === min) return 50; // Avoid division by zero
-  return ((value - min) / (max - min)) * 100;
-};
-
-// Helper to determine color based on signal strength
 function getSignalColor(signal: number): string {
     if (signal >= -60) return 'rgba(0, 255, 0, 0.6)'; // Green for Excellent
     if (signal >= -75) return 'rgba(173, 255, 47, 0.6)'; // Green-Yellow for Good
@@ -19,58 +14,71 @@ function getSignalColor(signal: number): string {
 }
 
 interface HeatmapPoint {
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
   color: string;
 }
 
 export default function MapView({ data }: { data: NetworkSignal[] }) {
-  const heatmapPoints = useMemo<HeatmapPoint[]>(() => {
+  const { points, center, bounds } = useMemo(() => {
     if (!data || data.length === 0) {
-      return [];
+      return { 
+        points: [], 
+        center: { lat: 51.505, lng: -0.09 },
+        bounds: null
+      };
     }
 
-    // Find the bounding box of the coordinates
-    const latitudes = data.map(d => d.latitude);
-    const longitudes = data.map(d => d.longitude);
-    const minLat = Math.min(...latitudes);
-    const maxLat = Math.max(...latitudes);
-    const minLon = Math.min(...longitudes);
-    const maxLon = Math.max(...longitudes);
+    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    
+    const processedPoints: HeatmapPoint[] = data.map(d => {
+      minLat = Math.min(minLat, d.latitude);
+      maxLat = Math.max(maxLat, d.latitude);
+      minLon = Math.min(minLon, d.longitude);
+      maxLon = Math.max(maxLon, d.longitude);
+      
+      return {
+        lat: d.latitude,
+        lng: d.longitude,
+        color: getSignalColor(d.signalStrength),
+      };
+    });
 
-    // Normalize coordinates and generate points
-    return data.map(d => ({
-      x: normalize(d.longitude, minLon, maxLon),
-      y: normalize(d.latitude, minLat, maxLat),
-      color: getSignalColor(d.signalStrength),
-    }));
+    const calculatedBounds: LatLngBounds | null = (minLat !== Infinity) 
+      ? new (require('leaflet')).LatLngBounds([[minLat, minLon], [maxLat, maxLon]])
+      : null;
+
+    const calculatedCenter = calculatedBounds ? calculatedBounds.getCenter() : { lat: 51.505, lng: -0.09 };
+
+    return { points: processedPoints, center: calculatedCenter, bounds: calculatedBounds };
   }, [data]);
 
   return (
-    <div className="h-full w-full bg-muted flex items-center justify-center relative rounded-lg overflow-hidden">
-      <div className="absolute inset-0 bg-background">
-        {heatmapPoints.map((point, index) => (
-          <div
+    <MapContainer center={center} zoom={13} scrollWheelZoom={false} className="h-full w-full rounded-lg" bounds={bounds ?? undefined}>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <FeatureGroup>
+        {points.map((point, index) => (
+          <Circle
             key={index}
-            className="absolute rounded-full"
-            style={{
-              left: `${point.x}%`,
-              // We invert the Y-axis because screen coordinates start from top-left
-              top: `${100 - point.y}%`, 
-              width: '40px',
-              height: '40px',
-              backgroundColor: point.color,
-              transform: 'translate(-50%, -50%)',
-              filter: 'blur(10px)',
+            center={[point.lat, point.lng]}
+            pathOptions={{
+              color: point.color,
+              fillColor: point.color,
+              fillOpacity: 0.5,
+              weight: 0,
             }}
+            radius={30} // Radius in meters
           />
         ))}
-      </div>
-       {heatmapPoints.length === 0 && (
-         <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-            <p className="text-white/80 text-lg font-medium bg-black/50 px-4 py-2 rounded-md">No signal data to display on map</p>
+      </FeatureGroup>
+      {points.length === 0 && (
+        <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-[1000] pointer-events-none">
+          <p className="text-white/80 text-lg font-medium bg-black/50 px-4 py-2 rounded-md">No signal data to display on map</p>
         </div>
       )}
-    </div>
+    </MapContainer>
   );
 }

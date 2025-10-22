@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw } from 'lucide-react';
 import React, { useMemo, useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import type { NetworkSignal } from '@/lib/types';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import {
@@ -37,13 +38,16 @@ import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
 import { summarizeSession } from '@/ai/flows/summarize-session-flow';
 import { toast } from '@/hooks/use-toast';
 import { getAddressFromCoordinates } from '@/services/geocoding';
-import MapView from './map-view';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
 import { useCollection, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import { useFirebase, useFirestore, useMemoFirebase } from '@/firebase/provider';
 
+const MapView = dynamic(() => import('./map-view'), { 
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-muted flex items-center justify-center"><p>Loading map...</p></div>
+});
 
 function getSignalQuality(signal: number): {
   label: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Unusable';
@@ -222,7 +226,7 @@ export function ZoneExplorerClient() {
   const firestore = useFirestore();
 
   const signalsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !selectedSession) return null;
+    if (!firestore || !user || !selectedSession?.id) return null;
     return query(collection(firestore, 'users', user.uid, 'sessions', selectedSession.id, 'signals'));
   }, [firestore, user, selectedSession?.id]);
 
