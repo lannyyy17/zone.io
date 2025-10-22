@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw } from 'lucide-react';
+import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw, Home } from 'lucide-react';
 import React, { useMemo, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import type { NetworkSignal } from '@/lib/types';
@@ -221,7 +221,7 @@ function CollectionInProgressView({ progress }: { progress: number }) {
 
 
 export function ZoneExplorerClient() {
-  const { selectedSession, isCollecting } = useSelectedSession();
+  const { selectedSession, setSelectedSession, isCollecting } = useSelectedSession();
   const { user } = useFirebase();
   const firestore = useFirestore();
 
@@ -378,6 +378,10 @@ export function ZoneExplorerClient() {
     <div className="flex h-screen flex-col">
       <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-6">
         <div className="flex items-center gap-2 truncate">
+            <Button variant="outline" size="icon" onClick={() => setSelectedSession(null)} className="h-8 w-8">
+              <Home />
+              <span className="sr-only">Dashboard</span>
+            </Button>
             {isEditingName && selectedSession ? (
                  <div className="flex items-center gap-2">
                     <Input 
