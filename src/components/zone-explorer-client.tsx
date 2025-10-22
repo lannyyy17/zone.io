@@ -44,6 +44,7 @@ import { collection, query, doc } from 'firebase/firestore';
 import { useFirebase, useFirestore, useMemoFirebase } from '@/firebase/provider';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { cn } from '@/lib/utils';
+import { SessionHistoryDialog } from './session-history-dialog';
 
 const MapView = dynamic(() => import('./map-view'), { 
     ssr: false,
@@ -55,10 +56,10 @@ function getSignalQuality(signal: number): {
   variant: 'default' | 'secondary' | 'destructive' | 'outline';
   color: string;
 } {
-    if (signal >= -60) return { label: 'Excellent', variant: 'default', color: 'bg-green-500' };
-    if (signal >= -75) return { label: 'Good', variant: 'default', color: 'bg-lime-500' };
-    if (signal >= -90) return { label: 'Fair', variant: 'secondary', color: 'bg-yellow-500' };
-    if (signal >= -100) return { label: 'Poor', variant: 'outline', color: 'bg-orange-500' };
+    if (signal >= -50) return { label: 'Excellent', variant: 'default', color: 'bg-green-500' };
+    if (signal >= -65) return { label: 'Good', variant: 'default', color: 'bg-lime-500' };
+    if (signal >= -80) return { label: 'Fair', variant: 'secondary', color: 'bg-yellow-500' };
+    if (signal >= -95) return { label: 'Poor', variant: 'outline', color: 'bg-orange-500' };
     return { label: 'Unusable', variant: 'destructive', color: 'bg-red-500' };
 }
 
@@ -482,6 +483,7 @@ export function ZoneExplorerClient() {
             )}
         </div>
         <div className="flex items-center gap-2">
+            <SessionHistoryDialog />
             <Button
                 onClick={handleAiSummary}
                 disabled={!sessionSignalData || sessionSignalData.length === 0 || isAiLoading}

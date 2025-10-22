@@ -1,6 +1,5 @@
 import type {Metadata} from 'next';
 import './globals.css';
-import { SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { SelectedSessionProvider } from '@/hooks/use-selected-session';
 
@@ -24,10 +23,8 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background bg-gradient-to-br from-background to-secondary/20">
         <SelectedSessionProvider>
-          <SidebarProvider>
             {children}
             <Toaster />
-          </SidebarProvider>
         </SelectedSessionProvider>
       </body>
     </html>

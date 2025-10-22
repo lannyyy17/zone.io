@@ -3,16 +3,8 @@
 import { FirebaseClientProvider, useFirebase } from '@/firebase';
 import { ZoneExplorerClient } from '@/components/zone-explorer-client';
 import { AuthScreen } from '@/components/auth-screen';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarTrigger
-} from '@/components/ui/sidebar';
 import { SignalIcon } from 'lucide-react';
 import { UserNav } from '@/components/user-nav';
-import { SessionHistory } from '@/components/session-history';
 import { useSelectedSession } from '@/hooks/use-selected-session';
 import { Dashboard } from '@/components/dashboard';
 
@@ -41,31 +33,20 @@ function AppContent() {
 
 
   return (
-    <>
-      <Sidebar>
-        <SidebarHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <SignalIcon className="size-8 text-primary" />
-              <h1 className="text-xl font-semibold font-headline">
-                Zone.io
-              </h1>
-            </div>
-            <UserNav />
+    <div className="flex h-screen w-full flex-col">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-6">
+          <div className="flex items-center gap-2">
+            <SignalIcon className="size-8 text-primary" />
+            <h1 className="text-xl font-semibold font-headline">
+              Zone.io
+            </h1>
           </div>
-        </SidebarHeader>
-        <SidebarContent>
-          <SessionHistory />
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset>
-        <div className="flex items-center gap-2 border-b p-2 md:hidden">
-            <SidebarTrigger/>
-            <h1 className="text-lg font-semibold">Sessions</h1>
-        </div>
+          <UserNav />
+      </header>
+      <div className="flex-1">
         { selectedSession ? <ZoneExplorerClient /> : <Dashboard /> }
-      </SidebarInset>
-    </>
+      </div>
+    </div>
   );
 }
 
