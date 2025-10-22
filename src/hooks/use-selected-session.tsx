@@ -10,6 +10,8 @@ import {
 } from 'react';
 import type { Session } from '@/lib/types';
 
+export type CollectionMode = 'pinpoint' | 'area';
+
 interface SelectedSessionContextType {
   selectedSession: Session | null;
   setSelectedSession: Dispatch<SetStateAction<Session | null>>;
@@ -17,6 +19,10 @@ interface SelectedSessionContextType {
   setActiveSession: Dispatch<SetStateAction<Session | null>>;
   isCollecting: boolean;
   setIsCollecting: Dispatch<SetStateAction<boolean>>;
+  collectionMode: CollectionMode;
+  setCollectionMode: Dispatch<SetStateAction<CollectionMode>>;
+  isScanning: boolean;
+  setIsScanning: Dispatch<SetStateAction<boolean>>;
 }
 
 const SelectedSessionContext = createContext<
@@ -27,6 +33,8 @@ export function SelectedSessionProvider({ children }: { children: ReactNode }) {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [isCollecting, setIsCollecting] = useState<boolean>(false);
+  const [collectionMode, setCollectionMode] = useState<CollectionMode>('pinpoint');
+  const [isScanning, setIsScanning] = useState<boolean>(false);
   
   return (
     <SelectedSessionContext.Provider
@@ -36,7 +44,11 @@ export function SelectedSessionProvider({ children }: { children: ReactNode }) {
         isCollecting, 
         setIsCollecting,
         activeSession,
-        setActiveSession
+        setActiveSession,
+        collectionMode,
+        setCollectionMode,
+        isScanning,
+        setIsScanning,
       }}
     >
       {children}

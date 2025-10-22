@@ -8,11 +8,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw, Home, MapPin } from 'lucide-react';
-import React, { useMemo, useState, useEffect } from 'react';
+import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, Home, MapPin, Scan, Play, Pause } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import type { NetworkSignal } from '@/lib/types';
-import { useSelectedSession } from '@/hooks/use-selected-session';
+import { useSelectedSession, type CollectionMode } from '@/hooks/use-selected-session';
 import {
   Table,
   TableBody,
@@ -42,6 +42,8 @@ import { Input } from './ui/input';
 import { useCollection, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import { useFirebase, useFirestore, useMemoFirebase } from '@/firebase/provider';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { cn } from '@/lib/utils';
 
 const MapView = dynamic(() => import('./map-view'), { 
     ssr: false,
@@ -200,23 +202,6 @@ function SignalChart({ data }: { data: NetworkSignal[] }) {
     );
 }
 
-function CollectionInProgressView() {
-  return (
-    <Card className="mb-4">
-      <CardHeader>
-        <CardTitle>Live Session in Progress</CardTitle>
-        <CardDescription>
-          Your session is active. Walk around and use the "Drop Pin" button to record signal data at your current location.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center gap-4 p-10">
-        <Wifi className="size-16 animate-pulse text-primary" />
-        <p className="text-sm text-muted-foreground">The map will update in real-time as you add data points.</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 const measureDownloadSpeedAndConvertToDb = async (): Promise<number> => {
     const startTime = Date.now();
     try {
@@ -229,19 +214,120 @@ const measureDownloadSpeedAndConvertToDb = async (): Promise<number> => {
         const speedInBps = sizeInBits / durationInSeconds;
         const speedInMbps = speedInBps / 1000 / 1000;
 
-        // Convert Mbps to a dBm value on a logarithmic-like scale
-        if (speedInMbps > 100) return -50; // Excellent
-        if (speedInMbps > 50) return -65; // Good
-        if (speedInMbps > 10) return -80; // Fair
-        if (speedInMbps > 1) return -95; // Poor
-        return -110; // Unusable
+        if (speedInMbps > 100) return -50;
+        if (speedInMbps > 50) return -65;
+        if (speedInMbps > 10) return -80;
+        if (speedInMbps > 1) return -95;
+        return -110;
 
     } catch (error) {
         console.error('Download speed measurement failed:', error);
-        return -110; // Return worst possible signal on error
+        return -110;
     }
 }
 
+function LiveCollectionPanel() {
+    const { collectionMode, setCollectionMode, isScanning, setIsScanning } = useSelectedSession();
+    const [isPinDropping, setIsPinDropping] = useState(false);
+    const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const { user } = useFirebase();
+    const firestore = useFirestore();
+    const { selectedSession } = useSelectedSession();
+    
+    const recordSignalPoint = (showToast = true) => {
+        if (!navigator.geolocation) {
+            toast({ variant: 'destructive', title: 'Geolocation Not Supported', description: 'Your browser does not support geolocation.'});
+            return;
+        }
+    
+        if (!user || !firestore || !selectedSession) return;
+    
+        setIsPinDropping(true);
+        if(showToast) toast({ title: 'Measuring Signal...', description: 'Please wait while we test your network speed.' });
+        
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                const signalStrength = await measureDownloadSpeedAndConvertToDb();
+                const signalsCollection = collection(firestore, 'users', user.uid, 'sessions', selectedSession.id, 'signals');
+                const newSignal = { latitude, longitude, signalStrength, timestamp: new Date() };
+                addDocumentNonBlocking(signalsCollection, newSignal);
+    
+                if(showToast) toast({ title: 'Pin Dropped!', description: `Signal recorded at ${latitude.toFixed(4)}, ${longitude.toFixed(4)} with ${signalStrength} dBm`});
+                setIsPinDropping(false);
+            },
+            (error) => {
+                if(showToast) toast({ variant: 'destructive', title: 'Geolocation Error', description: error.message });
+                setIsPinDropping(false);
+            }
+        )
+    }
+
+    const handleToggleScan = () => {
+        setIsScanning(prev => {
+            const nowScanning = !prev;
+            if (nowScanning) {
+                recordSignalPoint(false);
+                scanIntervalRef.current = setInterval(() => recordSignalPoint(false), 5000);
+                toast({title: "Area Scan Started", description: "Automatically collecting data every 5 seconds."});
+            } else {
+                if(scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+                toast({title: "Area Scan Stopped", description: "Automatic data collection paused."});
+            }
+            return nowScanning;
+        });
+    }
+
+    useEffect(() => {
+        return () => {
+            if (scanIntervalRef.current) {
+                clearInterval(scanIntervalRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (collectionMode === 'pinpoint' && isScanning) {
+            setIsScanning(false);
+            if(scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+        }
+    }, [collectionMode, isScanning, setIsScanning])
+
+
+    return (
+        <Card className="mb-4 bg-primary/5">
+            <CardHeader>
+                <CardTitle>Live Collection Controls</CardTitle>
+                <CardDescription>Select a mode and start collecting signal data for this session.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <ToggleGroup type="single" value={collectionMode} onValueChange={(value: CollectionMode) => value && setCollectionMode(value)} aria-label="Collection Mode">
+                    <ToggleGroupItem value="pinpoint" aria-label="Pinpoint Mode">
+                        <MapPin className="mr-2" />
+                        Pinpoint
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="area" aria-label="Area Scan Mode">
+                        <Scan className="mr-2" />
+                        Area Scan
+                    </ToggleGroupItem>
+                </ToggleGroup>
+
+                <div className="h-10 border-l border-border hidden sm:block" />
+
+                {collectionMode === 'pinpoint' ? (
+                    <Button onClick={() => recordSignalPoint()} disabled={isPinDropping} size="lg" className="w-full sm:w-auto">
+                        {isPinDropping ? <Loader2 className="mr-2 animate-spin" /> : <MapPin className="mr-2" />}
+                        Drop Pin
+                    </Button>
+                ) : (
+                    <Button onClick={handleToggleScan} variant={isScanning ? "destructive" : "default"} size="lg" className="w-full sm:w-auto">
+                        {isScanning ? <><Pause className="mr-2" />Stop Scan</> : <><Play className="mr-2" />Start Scan</>}
+                    </Button>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
 
 export function ZoneExplorerClient() {
   const { selectedSession, setSelectedSession, isCollecting } = useSelectedSession();
@@ -258,7 +344,6 @@ export function ZoneExplorerClient() {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
-  const [isPinDropping, setIsPinDropping] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
 
@@ -332,53 +417,7 @@ export function ZoneExplorerClient() {
         setIsGeocoding(false);
     }
   }
-
-  const handleDropPin = () => {
-    if (!navigator.geolocation) {
-        toast({ variant: 'destructive', title: 'Geolocation Not Supported', description: 'Your browser does not support geolocation.'});
-        return;
-    }
-
-    if (!user || !firestore || !selectedSession) return;
-
-    setIsPinDropping(true);
-    toast({ title: 'Measuring Signal...', description: 'Please wait while we test your network speed.' });
-    
-    navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            const { latitude, longitude } = position.coords;
-            
-            const signalStrength = await measureDownloadSpeedAndConvertToDb();
-            
-            const signalsCollection = collection(firestore, 'users', user.uid, 'sessions', selectedSession.id, 'signals');
-            
-            const newSignal = {
-                latitude: latitude,
-                longitude: longitude,
-                signalStrength: signalStrength,
-                timestamp: new Date(),
-            };
-
-            addDocumentNonBlocking(signalsCollection, newSignal);
-
-            toast({ title: 'Pin Dropped!', description: `Signal recorded at ${latitude.toFixed(4)}, ${longitude.toFixed(4)} with ${signalStrength} dBm`});
-            setIsPinDropping(false);
-        },
-        (error) => {
-            toast({ variant: 'destructive', title: 'Geolocation Error', description: error.message });
-            setIsPinDropping(false);
-        }
-    )
-
-  }
   
-  const handleRefresh = () => {
-    toast({
-        title: "Real-time Enabled",
-        description: "Signal data is updated in real-time."
-    })
-  }
-
   const handleSaveName = () => {
     if (!selectedSession || !newSessionName.trim() || !user || !firestore) {
         toast({ variant: 'destructive', title: 'Invalid Name', description: 'Session name cannot be empty.'});
@@ -438,12 +477,6 @@ export function ZoneExplorerClient() {
             )}
         </div>
         <div className="flex items-center gap-2">
-            { isCollecting && (
-                <Button onClick={handleDropPin} disabled={isPinDropping} size="sm">
-                    {isPinDropping ? <Loader2 className="mr-2 animate-spin" /> : <MapPin className="mr-2" />}
-                    <span className="hidden sm:inline">Drop Pin</span>
-                </Button>
-            )}
             <Button
                 onClick={handleAiSummary}
                 disabled={!sessionSignalData || sessionSignalData.length === 0 || isAiLoading}
@@ -464,7 +497,7 @@ export function ZoneExplorerClient() {
         </div>
       </header>
       <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6">
-        {isCollecting && selectedSession && <CollectionInProgressView />}
+        {isCollecting && selectedSession && <LiveCollectionPanel />}
 
         {!selectedSession && (
           <Card>
@@ -546,7 +579,9 @@ export function ZoneExplorerClient() {
                       </Table>
                     </div>
                   ) : (
-                     <p>No signal data for this session.</p>
+                     <p className={cn(isCollecting ? "text-muted-foreground" : "")}>
+                        {isCollecting ? "Waiting for the first data point..." : "No signal data for this session."}
+                    </p>
                   )}
                 </CardContent>
               </Card>
