@@ -288,10 +288,15 @@ function LiveCollectionPanel() {
 
     useEffect(() => {
         if (collectionMode === 'pinpoint' && isScanning) {
-            setIsScanning(false);
-            if(scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+            // Defer state update to prevent updates during render
+            setTimeout(() => {
+                setIsScanning(false);
+                if (scanIntervalRef.current) {
+                    clearInterval(scanIntervalRef.current);
+                }
+            }, 0);
         }
-    }, [collectionMode, isScanning, setIsScanning])
+    }, [collectionMode, isScanning, setIsScanning]);
 
 
     return (
