@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
-import { Gauge, Zap, Server } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from './ui/card';
+import { Gauge, Server } from 'lucide-react';
+import { Badge } from './ui/badge';
 
 export function DownloadSpeedMonitor() {
   const [speed, setSpeed] = useState<number | null>(null);
@@ -13,7 +14,7 @@ export function DownloadSpeedMonitor() {
       setIsTesting(true);
       const startTime = Date.now();
       try {
-        // Fetch a 1MB file from our API endpoint
+        // Fetch a 10MB file from our API endpoint
         const response = await fetch(`/api/download-test?_=${startTime}`, { cache: 'no-store' });
         const blob = await response.blob();
         const endTime = Date.now();
@@ -45,8 +46,16 @@ export function DownloadSpeedMonitor() {
     return 'text-red-500';
   };
 
+  const speedScale = [
+    { label: 'Excellent', range: '> 100 Mbps', color: 'bg-green-500' },
+    { label: 'Good', range: '> 25 Mbps', color: 'bg-lime-500' },
+    { label: 'Fair', range: '> 5 Mbps', color: 'bg-yellow-500' },
+    { label: 'Poor', range: '> 1 Mbps', color: 'bg-orange-500' },
+    { label: 'Unusable', range: '< 1 Mbps', color: 'bg-red-500' }
+  ];
+
   return (
-    <Card className="hover:bg-muted/50 transition-all hover:scale-105">
+    <Card className="hover:bg-muted/50 transition-all hover:scale-105 flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
             <CardTitle className="flex items-center gap-2 font-headline">
@@ -59,7 +68,7 @@ export function DownloadSpeedMonitor() {
         </div>
         <Server className="size-8 text-primary" />
       </CardHeader>
-      <CardContent className="flex items-center justify-center p-6">
+      <CardContent className="flex flex-1 items-center justify-center p-6">
         {isTesting && speed === null ? (
             <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
         ) : (
@@ -68,6 +77,18 @@ export function DownloadSpeedMonitor() {
             </div>
         )}
       </CardContent>
+      <CardFooter className="flex-col items-start gap-2 text-sm">
+        <p className="text-xs font-semibold text-muted-foreground">Signal Strength Conversion Scale:</p>
+        <div className="flex flex-wrap gap-2">
+          {speedScale.map(item => (
+            <div key={item.label} className="flex items-center gap-2">
+              <div className={`h-2 w-2 rounded-full ${item.color}`} />
+              <span className="font-medium">{item.label}:</span>
+              <span className="text-muted-foreground">{item.range}</span>
+            </div>
+          ))}
+        </div>
+      </CardFooter>
     </Card>
   );
 }
