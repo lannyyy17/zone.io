@@ -1,6 +1,6 @@
 # Zone.io
 
-**Zone.io** is a web-based network analysis tool designed to map and visualize signal strength in specific locations. The application allows users to conduct data collection "sessions" using two modes: a manual "Pinpoint" mode for dropping individual data points, or an automated "Area Scan" mode that periodically records signal data while the user moves.
+**Zone.io** is a web-based network analysis tool designed to map and visualize signal strength in specific locations. The application allows users to conduct data collection "sessions" using two modes: a manual "Pinpoint" mode for dropping individual data points, or an automated "Area Scan" mode that periodically records signal data while the user moves. Data points, including GPS coordinates and signal strength derived from real-time download speed tests, are stored in Cloud Firestore and displayed on an interactive Leaflet map, providing an intuitive heatmap of network quality. Built with Next.js, React, and Firebase, the app features live performance monitoring, session management with AI-powered summaries, data export, and a download time calculator.
 
 ## Key Features
 
