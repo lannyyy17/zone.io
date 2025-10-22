@@ -39,19 +39,14 @@ export function SessionHistory() {
       )}
       <SidebarMenu>
         {sessions && sessions.map((session) => {
-          const isActive = session.endTime === null;
-          const isCurrentCollectingSession = isActive && isCollecting && selectedSession?.id === session.id;
+          const isLive = session.endTime === null;
 
           return (
             <SidebarMenuItem key={session.id}>
               <SidebarMenuButton
                 isActive={selectedSession?.id === session.id}
-                onClick={() => {
-                    if (!isCollecting) {
-                        setSelectedSession(session)
-                    }
-                }}
-                disabled={isCollecting && !isCurrentCollectingSession}
+                onClick={() => setSelectedSession(session)}
+                disabled={isCollecting && !isLive}
               >
                 <MapPin />
                 <div className="flex flex-col items-start truncate">
@@ -60,8 +55,8 @@ export function SessionHistory() {
                   </span>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <div className="flex items-center">
-                        <Dot className={cn("mr-1 h-4 w-4", isActive ? "animate-pulse text-blue-500" : "text-green-500")} />
-                        <span>{isCurrentCollectingSession ? "Collecting" : (isActive ? "Active" : "Completed")}</span>
+                        <Dot className={cn("mr-1 h-4 w-4", isLive ? "animate-pulse text-red-500" : "text-green-500")} />
+                        <span>{isLive ? "Live" : "Completed"}</span>
                     </div>
                   </div>
                 </div>

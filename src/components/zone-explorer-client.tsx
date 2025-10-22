@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw, Home } from 'lucide-react';
+import { DownloadIcon, Wifi, TrendingUp, TrendingDown, Hash, Bot, Loader2, Edit, Save, RefreshCw, Home, MapPin } from 'lucide-react';
 import React, { useMemo, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import type { NetworkSignal } from '@/lib/types';
@@ -39,8 +39,7 @@ import { summarizeSession } from '@/ai/flows/summarize-session-flow';
 import { toast } from '@/hooks/use-toast';
 import { getAddressFromCoordinates } from '@/services/geocoding';
 import { Input } from './ui/input';
-import { Progress } from './ui/progress';
-import { useCollection, updateDocumentNonBlocking } from '@/firebase';
+import { useCollection, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import { useFirebase, useFirestore, useMemoFirebase } from '@/firebase/provider';
 
@@ -201,19 +200,18 @@ function SignalChart({ data }: { data: NetworkSignal[] }) {
     );
 }
 
-function CollectionInProgressView({ progress }: { progress: number }) {
+function CollectionInProgressView() {
   return (
-    <Card>
+    <Card className="mb-4">
       <CardHeader>
-        <CardTitle>Collecting Network Data</CardTitle>
+        <CardTitle>Live Session in Progress</CardTitle>
         <CardDescription>
-          Please wait while we gather signal strength information. This will take about 30 seconds.
+          Your session is active. Walk around and use the "Drop Pin" button to record signal data at your current location.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center justify-center gap-4 p-10">
         <Wifi className="size-16 animate-pulse text-primary" />
-        <Progress value={progress} className="w-full" />
-        <p className="text-sm text-muted-foreground">{Math.round(progress)}% complete</p>
+        <p className="text-sm text-muted-foreground">The map will update in real-time as you add data points.</p>
       </CardContent>
     </Card>
   );
@@ -235,9 +233,9 @@ export function ZoneExplorerClient() {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isPinDropping, setIsPinDropping] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
-  const [collectionProgress, setCollectionProgress] = useState(0);
 
   useEffect(() => {
     if (!selectedSession) {
@@ -248,33 +246,7 @@ export function ZoneExplorerClient() {
 
     setNewSessionName(selectedSession.locationName ?? `Session ${selectedSession.id.slice(0, 6)}`);
 
-    const isLive = selectedSession.endTime === null;
-
-    if (isLive && isCollecting) {
-        setAiSummary(null);
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += (100 / 30);
-            setCollectionProgress(progress);
-            if(progress >= 100) {
-                clearInterval(interval);
-            }
-        }, 1000);
-
-        return () => clearInterval(interval);
-    } else {
-        setCollectionProgress(0);
-        // This effect will run after collection is finished
-        // or when a new session is selected.
-        if (selectedSession && selectedSession.endTime !== null) {
-            // If the session was just created, prompt for a name.
-            if (Date.now() - selectedSession.startTime < 32000) { // a bit more than 30s
-                setIsEditingName(true);
-            }
-        }
-    }
-
-  }, [selectedSession, isCollecting]);
+  }, [selectedSession]);
 
 
   const exportToCSV = () => {
@@ -335,10 +307,44 @@ export function ZoneExplorerClient() {
         setIsGeocoding(false);
     }
   }
+
+  const handleDropPin = () => {
+    if (!navigator.geolocation) {
+        toast({ variant: 'destructive', title: 'Geolocation Not Supported', description: 'Your browser does not support geolocation.'});
+        return;
+    }
+
+    if (!user || !firestore || !selectedSession) return;
+
+    setIsPinDropping(true);
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            const signalsCollection = collection(firestore, 'users', user.uid, 'sessions', selectedSession.id, 'signals');
+            
+            const newSignal = {
+                latitude: latitude,
+                longitude: longitude,
+                signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110), // Placeholder
+                timestamp: new Date(),
+            };
+
+            // Non-blocking write
+            addDocumentNonBlocking(signalsCollection, newSignal);
+
+            toast({ title: 'Pin Dropped!', description: `Signal recorded at ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`});
+            setIsPinDropping(false);
+        },
+        (error) => {
+            toast({ variant: 'destructive', title: 'Geolocation Error', description: error.message });
+            setIsPinDropping(false);
+        }
+    )
+
+  }
   
   const handleRefresh = () => {
-    // This function is now less relevant with real-time data,
-    // but could be repurposed for a manual re-fetch if needed.
     toast({
         title: "Real-time Enabled",
         description: "Signal data is updated in real-time."
@@ -351,7 +357,6 @@ export function ZoneExplorerClient() {
         return;
     };
     
-    // Non-blocking update
     updateDocumentNonBlocking(
       doc(firestore, 'users', user.uid, 'sessions', selectedSession.id),
       { locationName: newSessionName }
@@ -363,8 +368,6 @@ export function ZoneExplorerClient() {
 
   const tableData = useMemo(() => {
     if (!sessionSignalData) return [];
-    // Firestore timestamps are objects, we need to convert them to numbers for sorting
-    // This assumes the timestamp property is a Firestore Timestamp object
     const sortedData = [...sessionSignalData].sort((a, b) => {
         const timeA = a.timestamp?.seconds ? (a.timestamp.seconds * 1000 + a.timestamp.nanoseconds / 1000000) : 0;
         const timeB = b.timestamp?.seconds ? (b.timestamp.seconds * 1000 + b.timestamp.nanoseconds / 1000000) : 0;
@@ -400,25 +403,22 @@ export function ZoneExplorerClient() {
                     : 'Select a Session'}
                 </h2>
             )}
-             {selectedSession && !isEditingName && !isCollecting && (
+             {selectedSession && !isEditingName && (
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditingName(true)}>
                     <Edit />
                 </Button>
             )}
         </div>
         <div className="flex items-center gap-2">
-            <Button
-                onClick={handleRefresh}
-                disabled={!selectedSession || isCollecting}
-                size="sm"
-                variant="outline"
-            >
-                <RefreshCw className="mr-2" />
-                <span className="hidden sm:inline">Refresh</span>
-            </Button>
+            { isCollecting && (
+                <Button onClick={handleDropPin} disabled={isPinDropping} size="sm">
+                    {isPinDropping ? <Loader2 className="mr-2 animate-spin" /> : <MapPin className="mr-2" />}
+                    <span className="hidden sm:inline">Drop Pin</span>
+                </Button>
+            )}
             <Button
                 onClick={handleAiSummary}
-                disabled={!sessionSignalData || sessionSignalData.length === 0 || isAiLoading || isCollecting}
+                disabled={!sessionSignalData || sessionSignalData.length === 0 || isAiLoading}
                 size="sm"
                 variant="outline"
             >
@@ -427,7 +427,7 @@ export function ZoneExplorerClient() {
             </Button>
           <Button
             onClick={exportToCSV}
-            disabled={!sessionSignalData || sessionSignalData.length === 0 || isCollecting}
+            disabled={!sessionSignalData || sessionSignalData.length === 0}
             size="sm"
           >
             <DownloadIcon className="mr-2" />
@@ -436,9 +436,9 @@ export function ZoneExplorerClient() {
         </div>
       </header>
       <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6">
-        {isCollecting && selectedSession && <CollectionInProgressView progress={collectionProgress} />}
+        {isCollecting && selectedSession && <CollectionInProgressView />}
 
-        {!selectedSession && !isCollecting && (
+        {!selectedSession && (
           <Card>
             <CardHeader>
               <CardTitle>Welcome to Zone.io</CardTitle>
@@ -448,7 +448,7 @@ export function ZoneExplorerClient() {
             </CardHeader>
             <CardContent>
               <p>
-                Click "Start New Session" to begin a 30-second data collection.
+                Click "Start New Session" on the dashboard to begin a live collection session.
               </p>
             </CardContent>
           </Card>
@@ -462,7 +462,7 @@ export function ZoneExplorerClient() {
             </Card>
         )}
 
-        {selectedSession && !isCollecting && !signalsLoading && (
+        {selectedSession && !signalsLoading && (
             <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                 <div className="h-[40vh] lg:h-auto">
