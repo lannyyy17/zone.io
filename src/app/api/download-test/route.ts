@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 
 // This endpoint serves a file of a specific size for download speed testing.
 export async function GET() {
-  // Create a 1MB buffer of zeros.
-  // 1 MB = 1024 * 1024 bytes.
-  const fileSizeInBytes = 1024 * 1024;
+  // Create a 10MB buffer of zeros.
+  // 10 MB = 10 * 1024 * 1024 bytes.
+  const fileSizeInBytes = 10 * 1024 * 1024;
   const buffer = Buffer.alloc(fileSizeInBytes);
 
   // Return the buffer as a response.
