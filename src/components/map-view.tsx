@@ -1,8 +1,8 @@
 'use client';
 
 import type { NetworkSignal } from '@/lib/types';
-import { useMemo } from 'react';
-import { MapContainer, TileLayer, Circle, FeatureGroup } from 'react-leaflet';
+import { useMemo, useEffect } from 'react';
+import { MapContainer, TileLayer, Circle, FeatureGroup, useMap } from 'react-leaflet';
 import type { LatLngBounds } from 'leaflet';
 
 function getSignalColor(signal: number): string {
@@ -18,6 +18,24 @@ interface HeatmapPoint {
   lng: number;
   color: string;
 }
+
+interface MapUpdaterProps {
+  bounds: LatLngBounds | null;
+  center: { lat: number; lng: number };
+}
+
+function MapUpdater({ bounds, center }: MapUpdaterProps) {
+  const map = useMap();
+  useEffect(() => {
+    if (bounds) {
+      map.fitBounds(bounds);
+    } else {
+      map.setView(center, 13);
+    }
+  }, [bounds, center, map]);
+  return null;
+}
+
 
 export default function MapView({ data }: { data: NetworkSignal[] }) {
   const { points, center, bounds } = useMemo(() => {
@@ -54,11 +72,12 @@ export default function MapView({ data }: { data: NetworkSignal[] }) {
   }, [data]);
 
   return (
-    <MapContainer center={center} zoom={13} scrollWheelZoom={false} className="h-full w-full rounded-lg" bounds={bounds ?? undefined}>
+    <MapContainer center={center} zoom={13} scrollWheelZoom={false} className="h-full w-full rounded-lg">
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <MapUpdater bounds={bounds} center={center} />
       <FeatureGroup>
         {points.map((point, index) => (
           <Circle
