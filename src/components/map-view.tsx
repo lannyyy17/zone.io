@@ -1,8 +1,8 @@
 'use client';
 
 import type { NetworkSignal } from '@/lib/types';
-import { useMemo, useEffect, memo, useRef } from 'react';
-import L, { Map, LayerGroup, LatLngBounds } from 'leaflet';
+import { useEffect, memo, useRef } from 'react';
+import L, { Map, LayerGroup } from 'leaflet';
 
 // Signal color function remains the same
 function getSignalColor(signal: number): string {
@@ -23,9 +23,9 @@ function MapView({ data }: { data: NetworkSignal[] }) {
     // Prevent re-initialization
     if (mapRef.current) return;
 
-    // Initialize the map and set its initial view
+    // Initialize the map and set its initial view to San Francisco
     mapRef.current = L.map('map-container', {
-      center: [51.505, -0.09],
+      center: [37.7749, -122.4194],
       zoom: 13,
       scrollWheelZoom: false,
     });
@@ -60,24 +60,26 @@ function MapView({ data }: { data: NetworkSignal[] }) {
     if (data && data.length > 0) {
         // Add a new circle for each data point
         data.forEach(d => {
-            L.circle([d.latitude, d.longitude], {
-            color: getSignalColor(d.signalStrength),
-            fillColor: getSignalColor(d.signalStrength),
-            fillOpacity: 0.5,
-            weight: 0,
-            radius: 30, // Radius in meters
-            }).addTo(featureGroup);
+            if (d.latitude && d.longitude) {
+              L.circle([d.latitude, d.longitude], {
+              color: getSignalColor(d.signalStrength),
+              fillColor: getSignalColor(d.signalStrength),
+              fillOpacity: 0.5,
+              weight: 0,
+              radius: 30, // Radius in meters
+              }).addTo(featureGroup);
+            }
         });
 
         // Calculate the bounds of the new data points
         const bounds = featureGroup.getBounds();
         if (bounds.isValid()) {
             // Fit the map view to the new bounds
-            map.fitBounds(bounds, { padding: [50, 50] });
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
         }
     } else {
-        // If there's no data, reset to a default view
-        map.setView([51.505, -0.09], 13);
+        // If there's no data, reset to a default view (San Francisco)
+        map.setView([37.7749, -122.4194], 13);
     }
   }, [data]); // This effect re-runs only when the 'data' prop changes
 

@@ -45,16 +45,16 @@ export function SessionHistory() {
 
     batch.set(newSessionRef, newSession);
 
-    // Simulate collecting a few points instantly
+    // Simulate collecting a few points instantly around San Francisco
     const numPoints = Math.floor(Math.random() * 6) + 10;
-    const lastSignalPos = { latitude: 34.0, longitude: -118.0 };
+    const startPos = { latitude: 37.7749, longitude: -122.4194 }; // San Francisco
 
     for (let i = 0; i < numPoints; i++) {
         const signalRef = doc(collection(firestore, 'users', user.uid, 'sessions', newSession.id, 'signals'));
         const newSignal = {
             id: signalRef.id,
-            latitude: lastSignalPos.latitude + (Math.random() - 0.5) * 0.001,
-            longitude: lastSignalPos.longitude + (Math.random() - 0.5) * 0.001,
+            latitude: startPos.latitude + (Math.random() - 0.5) * 0.01,
+            longitude: startPos.longitude + (Math.random() - 0.5) * 0.01,
             signalStrength: Math.floor(Math.random() * (-40 - -110 + 1) + -110),
             timestamp: serverTimestamp(),
         };
