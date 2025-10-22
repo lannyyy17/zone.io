@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import type { NetworkSignal } from '@/lib/types';
 import { useMemo } from 'react';
 
@@ -49,14 +48,7 @@ export default function MapView({ data }: { data: NetworkSignal[] }) {
 
   return (
     <div className="h-full w-full bg-muted flex items-center justify-center relative rounded-lg overflow-hidden">
-      <Image
-        src="https://picsum.photos/seed/satellite/1200/800"
-        alt="Satellite map background"
-        layout="fill"
-        objectFit="cover"
-        data-ai-hint="satellite map"
-      />
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 bg-background">
         {heatmapPoints.map((point, index) => (
           <div
             key={index}
