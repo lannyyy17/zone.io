@@ -66,7 +66,7 @@ function MapView({ data }: { data: NetworkSignal[] }) {
               fillColor: getSignalColor(d.signalStrength),
               fillOpacity: 0.5,
               weight: 0,
-              radius: 30, // Radius in meters
+              radius: 5, // Radius in meters
               }).addTo(featureGroup);
             }
         });
@@ -75,7 +75,7 @@ function MapView({ data }: { data: NetworkSignal[] }) {
         const bounds = featureGroup.getBounds();
         if (bounds.isValid()) {
             // Fit the map view to the new bounds
-            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 19 });
         }
     } else {
         // If there's no data, reset to a default view (San Francisco)
