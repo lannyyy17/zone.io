@@ -7,7 +7,7 @@ import { useFirebase, useFirestore } from '@/firebase';
 import { collection, doc, serverTimestamp, writeBatch, updateDoc, setDoc } from 'firebase/firestore';
 import type { Session } from '@/lib/types';
 import { DownloadTimeCalculator } from './download-time-calculator';
-import { PingMonitor } from './ping-monitor';
+import { DownloadSpeedMonitor } from './download-speed-monitor';
 
 export function Dashboard() {
   const { user } = useFirebase();
@@ -73,7 +73,7 @@ export function Dashboard() {
                  <StartStopButton />
             </div>
             <DownloadTimeCalculator />
-            <PingMonitor />
+            <DownloadSpeedMonitor />
         </div>
       </main>
     </div>
